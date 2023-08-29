@@ -6,11 +6,18 @@ RUN apt-get update && apt-get install -yq \
   iputils-ping \
   build-essential \
   python3 \
-  mininet \
-  openvswitch-testcontroller \
+  sudo \
+  git \
   tree
 
-WORKDIR /app
-COPY . /app
+WORKDIR /workdir
 
-CMD ["python3", "mininet-scripts/HttpServerTest.py"]
+RUN git clone https://github.com/mininet/mininet /workdir/mininet
+
+WORKDIR /workdir/mininet
+#RUN git checkout -b mininet-2.3.0 2.3.0 
+RUN util/install.sh -nfv
+
+WORKDIR /workdir/app
+COPY . /workdir/app
+CMD ["bash", "mininet-scripts/run.sh"]
