@@ -26,10 +26,10 @@ if __name__ == '__main__':
     setLogLevel('debug')
 
     print("Main\n")     
-    topo = SimpleTopology()
+    topoSimple = SimpleTopology()
     
     # Create Mininet network using the custom topology
-    net = Mininet(topo=topo, host=CPULimitedHost, link=TCLink)
+    net = Mininet(topo=topoSimple)
     
     # Start the network
     net.start()
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     h1, h2 = net.get('h1', 'h2')
     h1.cmd('ip address add 10.0.0.1/24 dev h1-eth0')
-    h2.cmd('ip address add 10.0.0.2/24 dev h1-eth0')
+    h2.cmd('ip address add 10.0.0.2/24 dev h2-eth0')
     
     print("Run http server")
     h1.cmd('python -m SimpleHTTPServer 80 &')
@@ -47,6 +47,8 @@ if __name__ == '__main__':
     print("Open xterm")
     h2.cmd('xterm &')
     
+    h2.cmd('ping 10.0.0.1 -c 3')
+
     print("Run CLI")
     # Run the Mininet command-line interface
     CLI(net)

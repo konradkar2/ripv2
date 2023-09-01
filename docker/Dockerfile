@@ -1,22 +1,27 @@
 FROM ubuntu:22.04
 RUN echo 'Run TestMininet'
+RUN mkdir -p /var/run/sshd
+
 RUN apt-get update && apt-get install -yq \
   vim \
+  curl \
+  dnsutils \
+  ifupdown \
   iproute2 \
+  iptables \
   iputils-ping \
-  build-essential \
-  python3 \
-  sudo \
-  git \
-  tree
+  net-tools \
+  tcpdump \
+  vim \
+  x11-xserver-utils \
+  xterm 
 
-WORKDIR /workdir
+RUN apt-get install -yq \
+  mininet \
+  openvswitch-switch \
+  openvswitch-testcontroller 
 
-RUN git clone https://github.com/mininet/mininet /workdir/mininet
-
-WORKDIR /workdir/mininet
-#RUN git checkout -b mininet-2.3.0 2.3.0 
-RUN util/install.sh -nfv
+RUN apt-get install quagga
 
 WORKDIR /workdir/app
 COPY . /workdir/app
