@@ -14,14 +14,22 @@ RUN apt-get update && apt-get install -yq \
   tcpdump \
   vim \
   x11-xserver-utils \
-  xterm 
+  xterm \ 
+  sudo 
 
+#MININET
 RUN apt-get install -yq \
   mininet \
   openvswitch-switch \
   openvswitch-testcontroller 
 
-RUN apt-get install quagga
+#FRR
+RUN apt-get install lsb-release -yq
+RUN curl -s https://deb.frrouting.org/frr/keys.gpg | tee /usr/share/keyrings/frrouting.gpg > /dev/null
+RUN echo deb '[signed-by=/usr/share/keyrings/frrouting.gpg]' https://deb.frrouting.org/frr $(lsb_release -s -c) frr-stable | tee -a /etc/apt/sources.list.d/frr.list
+RUN sudo apt-get update && sudo apt-get install frr frr-pythontools -yq
+
+
 
 WORKDIR /workdir/app
 COPY . /workdir/app

@@ -51,6 +51,12 @@ if __name__ == '__main__':
 
     print("Run CLI")
     # Run the Mininet command-line interface
+
+    h1.cmd("echo xd > /tmp/lol")
+    h1.cmd("ls /tmp/")
+    h2.cmd("ls /tmp/")
+
+
     CLI(net)
     
     # Clean up when done
