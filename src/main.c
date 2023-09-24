@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "logging.h"
+#include "rip.h"
 
 void sig_handler(int sig_num)
 {
@@ -15,7 +16,9 @@ int main(int argc, char *argv[])
 {
 	(void)argc;
 	(void)argv;
-	LOG_INFO("RIPV2 begin");
+	rip_context rip_ctx;
 
-	return 0;
+	int ret = rip_begin(&rip_ctx);
+
+	return ret;
 }
