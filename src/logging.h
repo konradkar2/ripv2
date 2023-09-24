@@ -1,5 +1,5 @@
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#ifndef LOGGING_H
+#define LOGGING_H
 
 #include <stdio.h>
 
@@ -11,8 +11,8 @@
 
 #define LOG_INFO(...)                                                          \
 	do {                                                                   \
-		fprintf(stdin, "INFO: " __VA_ARGS__);                          \
-		fprintf(stdin, "\n");                                          \
+		fprintf(stdout, "INFO: " __VA_ARGS__);                          \
+		fprintf(stdout, "\n");                                          \
 	} while (0)
 
-#endif /* GLOBAL_H */
+#endif

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "global.h"
+#include "logging.h"
 
 void sig_handler(int sig_num)
 {
@@ -11,10 +11,11 @@ void sig_handler(int sig_num)
 	exit(128 + sig_num);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    LOG_INFO("RIPV2 begin");
-	signal(SIGINT, sig_handler);
+	(void)argc;
+	(void)argv;
+	LOG_INFO("RIPV2 begin");
 
-    return 0;
+	return 0;
 }

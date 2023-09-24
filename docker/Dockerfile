@@ -27,7 +27,13 @@ RUN sudo apt-get update && sudo apt-get install frr frr-pythontools -yq
 #Munet
 RUN pip install munet
 
+RUN apt-get install cmake -y
 
 WORKDIR /workdir/app
 COPY . /workdir/app
+
+RUN cd ./src && mkdir build && \
+    cd build && cmake .. && \
+    make && make install 
+
 CMD ["bash", "tests/run.sh"]
