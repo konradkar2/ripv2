@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define RIP_PORT 520
-
 typedef struct rip_header {
 	uint8_t command;
 	uint8_t version;

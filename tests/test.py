@@ -70,6 +70,7 @@ if __name__ == "__main__":
     wait_for_frr(r2)
 
     r1.execute_shell("ip address add 10.0.1.1/24 dev eth0")
+    sleep(1)
     print(r1.execute_shell("ip a"))
     verify_connectivity(r1, "10.0.1.2")
 

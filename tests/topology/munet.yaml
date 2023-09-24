@@ -27,6 +27,9 @@ topology:
   nodes:
     - name: r1
       connections: ["net1"]
+      cap-add:
+      - SYS_ADMIN
+      - AUDIT_WRITE
     - name: r2
       kind: frr
       connections: ["net1", "net2"]
