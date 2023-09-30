@@ -1,5 +1,6 @@
 #include "rip.h"
 #include "logging.h"
+#include "rip_ifc.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -59,13 +60,11 @@ static int bind_port(int fd)
 static int join_multicast(int fd)
 {
 	const char *rip_multicast_addr = "224.0.0.9";
-	const char *local_ifc_addr     = "10.0.1.1";
-
 	struct ip_mreq mreq;
 	MEMSET_ZERO(mreq);
 
 	mreq.imr_multiaddr.s_addr = inet_addr(rip_multicast_addr);
-	mreq.imr_interface.s_addr = inet_addr(local_ifc_addr);
+	mreq.imr_interface.s_addr = INADDR_ANY;
 
 	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq,
 		       sizeof(mreq)) < 0) {
@@ -105,19 +104,31 @@ int rip_begin(rip_context *rip_ctx)
 	}
 
 	LOG_INFO("Waiting for messages...");
-	while (1) {
-		char buff[MSGBUFSIZE];
 
-		struct sockaddr_in addr;
-		socklen_t addrlen;
-		int nbytes = recvfrom(rip_ctx->fd, buff, MSGBUFSIZE, 0,
-				      (struct sockaddr *)&addr, &addrlen);
+	char buff[MSGBUFSIZE];
+	char *buff_p = buff;
+	struct sockaddr_in addr;
+	while (1) {
+		socklen_t addrlen = sizeof(addr);
+		ssize_t nbytes	  = recvfrom(rip_ctx->fd, buff_p, MSGBUFSIZE, 0,
+					     (struct sockaddr *)&addr, &addrlen);
 		if (nbytes < 0) {
 			perror("recvfrom");
 			return 1;
 		}
-		buff[nbytes] = '\0';
-		puts(buff);
+		LOG_INFO("Got message from %s\n", inet_ntoa(addr.sin_addr));
+		print_rip_header((const rip_header *)buff_p);
+		nbytes -= sizeof(rip_header);
+		buff_p += sizeof(rip_header);
+
+		size_t entry_count = nbytes / sizeof(rip2_entry);
+
+		for (size_t i = 0; i < entry_count; ++i) {
+			printf("entry no#%zu\n", i);
+			rip2_entry_to_host((rip2_entry *) buff_p);
+			print_rip2_entry((const rip2_entry *) buff_p);
+			buff_p += sizeof(rip2_entry);
+		}
 	}
 
 	return 0;

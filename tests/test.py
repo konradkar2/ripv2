@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from time import sleep
+import time
 import pexpect
 
 
@@ -37,30 +37,28 @@ class Host:
         return self.munet.before.decode()
 
 
-def verify_connectivity(host: Host, address: str):
-    ping_stdout = host.execute_shell("ping {0} -c 5".format(address))
-    verify_substring_exist(
-        ping_stdout,
-        "64 bytes from {0}".format(address),
-        "Connectivity between host {0} and {1}".format(host.name, address),
-    )
+def verify_connectivity(host: Host, address: str, retries: int = 4, sleep: float = 1):
+
+    for i in range(retries):
+        try:
+            ping_stdout = host.execute_shell("ping {0} -c 5".format(address))
+            verify_substring_exist(
+                ping_stdout,
+                "64 bytes from {0}".format(address),
+                "Connectivity between host {0} and {1}".format(host.name, address),
+            )
+            return
+        except Exception as e:
+            print("#{0} No connectivity between host {1} and {2}...".format(i,host.name, address))
+            time.sleep(1)
+
+    raise RuntimeError("No connectivity between host {0} and {1}".format(host.name, address))
 
 
 def wait_for_frr(r2: Host):
-    print(r2.execute_shell("ip a"))
-
     r4_address = "10.0.3.4"
-    for i in range(5):
-        try:
-            verify_connectivity(r2, r4_address)
-            return
-        except Exception as e:
-            print("No connectivity via FRR #{0}...".format(i))
-            sleep(2)
-
-    raise RuntimeError("No connectivity between r2 and {0} (FRR)".format(r4_address))
-
-
+    verify_connectivity(r2, r4_address)
+            
 if __name__ == "__main__":
     munet_ns_dir = "/tmp/test_ns"
     munet = run_munet(munet_ns_dir)
@@ -70,11 +68,17 @@ if __name__ == "__main__":
     wait_for_frr(r2)
 
     r1.execute_shell("ip address add 10.0.1.1/24 dev eth0")
-    sleep(1)
-    print(r1.execute_shell("ip a"))
+    r1.execute_shell("route -n add -net 224.0.0.0 netmask 240.0.0.0 dev eth0")
+    
+    time.sleep(1)
     verify_connectivity(r1, "10.0.1.2")
 
-    print(r1.execute_shell("rip"))
+    print(r1.execute_shell("sh -c 'nohup rip >> output.log 2>&1 &'"))
+
+    for i in range(5):
+        time.sleep(15)
+        print(r1.execute_shell("cat output.log"))
+    
 
 
 

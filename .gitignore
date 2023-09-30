@@ -3,3 +3,4 @@ venv
 build
 src/build
 src/rip
+.cache
