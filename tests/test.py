@@ -64,6 +64,8 @@ if __name__ == "__main__":
     munet = run_munet(munet_ns_dir)
 
     r1 = Host("r1", munet)
+    r1.execute_shell("touch rip.log")
+
     r2 = Host("r2", munet)
     wait_for_frr(r2)
 
@@ -73,12 +75,7 @@ if __name__ == "__main__":
     time.sleep(1)
     verify_connectivity(r1, "10.0.1.2")
 
-    print(r1.execute_shell("sh -c 'nohup rip >> output.log 2>&1 &'"))
-
-    for i in range(5):
-        time.sleep(15)
-        print(r1.execute_shell("cat output.log"))
+    print(r1.execute_shell("sh -c 'nohup rip >> rip.log 2>&1 &'"))
     
-
-
-
+    while(1):
+        time.sleep(100)

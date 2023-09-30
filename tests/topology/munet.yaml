@@ -30,6 +30,8 @@ topology:
       cap-add:
       - SYS_ADMIN
       - AUDIT_WRITE
+      volumes:
+      - "%RUNDIR%/var.log.rip:/var/log/rip"
     - name: r2
       kind: frr
       connections: ["net1", "net2"]

@@ -22,8 +22,8 @@ typedef struct rip2_entry {
 void rip2_entry_to_host(rip2_entry*);
 
 
-void print_rip_header(const rip_header*);
-void print_rip2_entry(const rip2_entry*);
+void rip_header_print(const rip_header*);
+void rip2_entry_print(const rip2_entry*);
 
 static_assert(sizeof(rip_header) == 4);
 static_assert(sizeof(rip2_entry) == 20);

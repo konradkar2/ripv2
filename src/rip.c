@@ -106,30 +106,42 @@ int rip_begin(rip_context *rip_ctx)
 	LOG_INFO("Waiting for messages...");
 
 	char buff[MSGBUFSIZE];
-	char *buff_p = buff;
-	struct sockaddr_in addr;
+	struct sockaddr_in addr_n;
 	while (1) {
-		socklen_t addrlen = sizeof(addr);
-		ssize_t nbytes	  = recvfrom(rip_ctx->fd, buff_p, MSGBUFSIZE, 0,
-					     (struct sockaddr *)&addr, &addrlen);
+		socklen_t addrlen = sizeof(addr_n);
+		ssize_t nbytes	  = recvfrom(rip_ctx->fd, buff, MSGBUFSIZE, 0,
+					     (struct sockaddr *)&addr_n, &addrlen);
 		if (nbytes < 0) {
-			perror("recvfrom");
+			LOG_ERR("recvfrom failed: %s", strerror(errno));
 			return 1;
 		}
-		LOG_INFO("Got message from %s\n", inet_ntoa(addr.sin_addr));
-		print_rip_header((const rip_header *)buff_p);
+
+		char addr_h[INET_ADDRSTRLEN];
+		if (NULL != inet_ntop(AF_INET, &addr_n.sin_addr, addr_h,
+				      INET_ADDRSTRLEN)) {
+			LOG_INFO("Got message from %s", addr_h);
+		} else {
+			LOG_ERR("got message, but inet_ntop failed: %s",
+				strerror(errno));
+			continue;
+		}
+
+		char *buff_p = buff;
+		rip_header_print((const rip_header *)buff_p);
 		nbytes -= sizeof(rip_header);
 		buff_p += sizeof(rip_header);
 
 		size_t entry_count = nbytes / sizeof(rip2_entry);
 
 		for (size_t i = 0; i < entry_count; ++i) {
-			printf("entry no#%zu\n", i);
-			rip2_entry_to_host((rip2_entry *) buff_p);
-			print_rip2_entry((const rip2_entry *) buff_p);
+			printf("[%zu]\n", i);
+			rip2_entry_to_host((rip2_entry *)buff_p);
+			rip2_entry_print((const rip2_entry *)buff_p);
 			buff_p += sizeof(rip2_entry);
 		}
 	}
+
+	
 
 	return 0;
 }
