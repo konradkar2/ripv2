@@ -1,9 +1,9 @@
-#ifndef RIP_IFC
-#define RIP_IFC
+#ifndef RIP_MESSAGES_H
+#define RIP_MESSAGES_H
 
+#include <assert.h>
 #include <netinet/in.h>
 #include <stdint.h>
-#include <assert.h>
 
 typedef struct rip_header {
 	uint8_t command;
@@ -19,11 +19,10 @@ typedef struct rip2_entry {
 	struct in_addr next_hop;
 	uint32_t metric;
 } rip2_entry;
-void rip2_entry_to_host(rip2_entry*);
+void rip2_entry_to_host(rip2_entry *);
 
-
-void rip_header_print(const rip_header*);
-void rip2_entry_print(const rip2_entry*);
+void rip_header_print(const rip_header *);
+void rip2_entry_print(const rip2_entry *);
 
 static_assert(sizeof(rip_header) == 4);
 static_assert(sizeof(rip2_entry) == 20);

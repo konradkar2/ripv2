@@ -9,7 +9,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 set(SOURCES
     main.c
     rip.c
-    rip_ifc.c
+    rip_messages.c
+    rip_if.c
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
