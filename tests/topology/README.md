@@ -1,3 +1,4 @@
+[outdated]
 FRR's RIP running on r2, r3, r4, the tested RIP implementation on r1.
 
 ```

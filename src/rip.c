@@ -104,7 +104,7 @@ static int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 }
 
 static void assign_fds_to_pollfds(const rip_context *rip_ctx,
-				  struct pollfd *pollfds,
+				  struct pollfd pollfds[],
 				  const nfds_t pollfds_capacity,
 				  nfds_t *actual_pollfds_count)
 {
@@ -112,7 +112,7 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 	       pollfds_capacity >= rip_ctx->rip_ifs_count);
 
 	for (size_t i = 0; i < rip_ctx->rip_ifs_count; ++i) {
-		pollfds->fd	  = rip_ctx->rip_ifs[i].fd;
+		pollfds[i].fd	  = rip_ctx->rip_ifs[i].fd;
 		pollfds[i].events = POLLIN;
 	}
 	// tbd: more fds like for timers, terminal interaction
@@ -173,6 +173,7 @@ int rip_begin(rip_context *rip_ctx)
 					"revents: %d",
 					current_pollfd->fd,
 					current_pollfd->revents);
+				return 1;
 			}
 		}
 	}
