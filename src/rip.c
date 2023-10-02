@@ -5,6 +5,7 @@
 #include "rip_if.h"
 #include "utils.h"
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -30,14 +31,16 @@ static int rip_if_entry_setup_resources(rip_if_entry *if_entry)
 	if (create_udp_socket(&if_entry->fd)) {
 		return 1;
 	}
-	if (set_allow_reuse_addr(if_entry->fd)) {
+	if (bind_to_device(if_entry->fd, if_entry->if_name)) {
+		return 1;
+	}
+	if (set_allow_reuse_port(if_entry->fd)) {
 		return 1;
 	}
 	if (bind_port(if_entry->fd)) {
 		return 1;
 	}
-	if (join_multicast(if_entry->fd, if_entry->if_index,
-			   if_entry->if_addr)) {
+	if (join_multicast(if_entry->fd, if_entry->if_index)) {
 		return 1;
 	}
 

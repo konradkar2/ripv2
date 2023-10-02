@@ -25,7 +25,8 @@ int main(int argc, char *argv[])
 	rip_context rip_ctx = {
 	    .rip_ifs_count = 2,
 	    .rip_ifs	   = {[0] = {.if_addr = "10.0.2.3", .if_name = "eth0"},
-			      [1] = {.if_addr = "10.0.3.3", .if_name = "eth1"}}};
+			     [1] = {.if_addr = "10.0.3.3", .if_name = "eth1"}
+				  }};
 
 	// temporary here, to be de done after some config parsing
 	for (size_t i = 0; i < rip_ctx.rip_ifs_count; ++i) {

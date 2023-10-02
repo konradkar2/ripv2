@@ -71,8 +71,8 @@ if __name__ == "__main__":
 
     r3_ut.execute_shell("ip address add 10.0.2.3/24 dev eth0")
     r3_ut.execute_shell("ip address add 10.0.3.3/24 dev eth1")
-    r3_ut.execute_shell("route -n add -net 224.0.0.0 netmask 240.0.0.0 dev eth0")
-    r3_ut.execute_shell("route -n add -net 224.0.0.0 netmask 240.0.0.0 dev eth1")
+    r3_ut.execute_shell("route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0")
+    r3_ut.execute_shell("route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1")
     
     time.sleep(1)
     verify_connectivity(r3_ut, "10.0.3.4")

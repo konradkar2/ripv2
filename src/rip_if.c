@@ -3,6 +3,7 @@
 #include "utils.h"
 
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <string.h>
@@ -23,12 +24,12 @@ int create_udp_socket(int *fd)
 	return 0;
 }
 
-int set_allow_reuse_addr(int fd)
+int set_allow_reuse_port(int fd)
 {
 	int yes = 1;
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&yes,
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (char *)&yes,
 		       sizeof(yes)) < 0) {
-		LOG_ERR("SO_REUSEADDR failed (fd: %d): %s,", fd,
+		LOG_ERR("SO_REUSEPORT failed (fd: %d): %s,", fd,
 			strerror(errno));
 		return 1;
 	}
@@ -49,22 +50,46 @@ int bind_port(int fd)
 		LOG_ERR("bind failed (fd: %d): %s", fd, strerror(errno));
 		return 1;
 	}
+
+	int off = 0;
+	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &off, sizeof(off)) <
+	    0) {
+		LOG_ERR("IP_MULTICAST_LOOP failed (fd: %d): %s", fd,
+			strerror(errno));
+		return 1;
+	}
+
 	return 0;
 }
 
-int join_multicast(int fd, int if_index, const char *local_ifc_address)
+int join_multicast(int fd, int if_index)
 {
 	struct ip_mreqn mreq;
 	MEMSET_ZERO(mreq);
 
 	mreq.imr_multiaddr.s_addr = inet_addr(RIP_MULTICAST_ADDR);
-	mreq.imr_address.s_addr	  = inet_addr(local_ifc_address);
 	mreq.imr_ifindex	  = if_index;
 
 	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq,
 		       sizeof(mreq)) < 0) {
 		LOG_ERR("IP_ADD_MEMBERSHIP failed (fd: %d): %s", fd,
 			strerror(errno));
+		return 1;
+	}
+
+	return 0;
+}
+
+int bind_to_device(int fd, const char if_name[IF_NAMESIZE])
+{
+	if (if_name == NULL || if_name[0] == '\0') {
+		LOG_ERR("if_name empty, fd: %d", fd);
+		return 1;
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, if_name,
+		       strnlen(if_name, IF_NAMESIZE)) < 0) {
+		LOG_ERR("SO_BINDTODEVICE failed: %s", strerror(errno));
 		return 1;
 	}
 
