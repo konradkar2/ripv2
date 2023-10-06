@@ -19,8 +19,8 @@ typedef struct rip2_entry {
 	struct in_addr next_hop;
 	uint32_t metric;
 } rip2_entry;
-void rip2_entry_to_host(rip2_entry *);
 
+void rip2_entry_to_host(rip2_entry *);
 void rip_header_print(const rip_header *);
 void rip2_entry_print(const rip2_entry *);
 

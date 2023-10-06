@@ -4,19 +4,20 @@ project(rip VERSION 1.0)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+add_subdirectory(librip)
+add_subdirectory(utils)
+#add_subdirectory(tests)
 
 # Source files
-set(SOURCES
+
+add_executable(rip
     main.c
-    rip.c
-    rip_messages.c
-    rip_if.c
 )
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-# Define the executable
-add_executable(rip ${SOURCES})
+target_link_libraries(rip
+    librip
+)
 
 # Installation
 install(TARGETS rip DESTINATION bin)
