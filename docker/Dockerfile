@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -yq \
   x11-xserver-utils \
   xterm \ 
   sudo \
-  pip
+  pip \
+  valgrind
 
 #FRR
 RUN apt-get install lsb-release -yq
@@ -32,8 +33,16 @@ RUN apt-get install cmake -y
 WORKDIR /workdir/app
 COPY . /workdir/app
 
-RUN cd ./src && mkdir build && \
-    cd build && cmake .. && \
+#run tests
+RUN cd ./src && mkdir build_debug && \
+    cd build_debug && cmake .. -DBUILD_TESTING=ON && \
+    make 
+RUN cd ./src/build_debug/tests && ctest
+RUN cd ./src/build_debug/tests && ctest -T memcheck
+  
+#install 
+RUN cd ./src && mkdir build_release && \
+    cd build_release && cmake -DBUILD_TESTING=OFF ..  && \
     make && make install 
 
 CMD ["bash", "tests/run.sh"]
