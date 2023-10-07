@@ -7,7 +7,6 @@
 typedef struct {
 	const char *name;
 	void (*func)(int *status);
-	int status;
 } test_fixture;
 
 int run_all_tests();
@@ -27,7 +26,7 @@ void add_test(test_fixture test);
 
 #define REGISTER_TEST(TEST_NAME)                                               \
 	void TEST_##TEST_NAME(int *_test_status);                              \
-	__attribute__((constructor)) void register_##TEST_NAME()               \
+	__attribute__((constructor)) void register_##TEST_NAME(void)           \
 	{                                                                      \
 		test_fixture test;                                             \
 		test.name = #TEST_NAME;                                        \

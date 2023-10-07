@@ -12,7 +12,7 @@ void vector_init(vector *vec, size_t total_length, void *data, size_t el_size)
 }
 
 inline size_t vec_get_len_total(vector *vec) { return vec->total_length; }
-inline size_t vec_get_len_current(vector *vec) { return vec->length; }
+inline size_t vec_get_len(vector *vec) { return vec->length; }
 inline size_t vec_get_len_left(vector *vec)
 {
 	return vec->total_length - vec->length;
@@ -20,7 +20,10 @@ inline size_t vec_get_len_left(vector *vec)
 
 inline void *vector_get_el(vector *vec, size_t index)
 {
-	return (char *)vec->data + index * vec->el_size;
+	if (index < vec->length) {
+		return (char *)vec->data + index * vec->el_size;
+	}
+	return NULL;
 }
 
 int vector_add_el(vector *vec, void *element, size_t el_size)
@@ -49,6 +52,7 @@ int vector_del_el(vector *vec, size_t idx)
 	void *src  = data + ((idx + 1) * vec->el_size);
 	size_t n   = (vec->total_length - idx) * vec->el_size;
 	memmove(dest, src, n);
+	--vec->length;
 
 	return 0;
 }

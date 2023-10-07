@@ -14,10 +14,10 @@ int run_all_tests()
 		int status = 0;
 		test->func(&status);
 		if (status) {
-			printf("%s FAILED\n", test->name);
+			printf("FAILED %s \n", test->name);
 			ret = 1;
 		} else {
-			printf("%s PASSED\n", test->name);
+			printf("PASSED %s \n", test->name);
 		}
 	}
 	return ret;

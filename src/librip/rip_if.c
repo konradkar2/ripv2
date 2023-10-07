@@ -35,7 +35,7 @@ int set_allow_reuse_port(int fd)
 	}
 
 	return 0;
-};
+}
 
 int bind_port(int fd)
 {
