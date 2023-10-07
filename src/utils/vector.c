@@ -11,9 +11,9 @@ void vector_init(vector *vec, size_t total_length, void *data, size_t el_size)
 	vec->length	  = 0;
 }
 
-inline size_t vec_length_total(vector *vec) { return vec->total_length; }
-inline size_t vec_length_current(vector *vec) { return vec->length; }
-inline size_t vec_length_left(vector *vec)
+inline size_t vec_get_len_total(vector *vec) { return vec->total_length; }
+inline size_t vec_get_len_current(vector *vec) { return vec->length; }
+inline size_t vec_get_len_left(vector *vec)
 {
 	return vec->total_length - vec->length;
 }
@@ -26,7 +26,7 @@ inline void *vector_get_el(vector *vec, size_t index)
 int vector_add_el(vector *vec, void *element, size_t el_size)
 {
 	assert(vec->el_size == el_size);
-	if (vec_length_left(vec) == 0) {
+	if (vec_get_len_left(vec) == 0) {
 		return 1;
 	}
 

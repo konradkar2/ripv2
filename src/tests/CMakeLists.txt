@@ -10,12 +10,14 @@ include(CTest)
 enable_testing()
 
 add_executable(tests
+    test.c
     main.c
+    vector_test.c
 )
 
 add_test(UTILS tests COMMAND tests)
 
-#target_link_libraries(tests
-#    librip
-#)
+target_link_libraries(tests
+    utils
+)
 
