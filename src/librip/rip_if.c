@@ -50,15 +50,6 @@ int bind_port(int fd)
 		LOG_ERR("bind failed (fd: %d): %s", fd, strerror(errno));
 		return 1;
 	}
-
-	int off = 0;
-	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &off, sizeof(off)) <
-	    0) {
-		LOG_ERR("IP_MULTICAST_LOOP failed (fd: %d): %s", fd,
-			strerror(errno));
-		return 1;
-	}
-
 	return 0;
 }
 

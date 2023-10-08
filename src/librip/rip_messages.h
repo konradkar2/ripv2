@@ -5,6 +5,9 @@
 #include <netinet/in.h>
 #include <stdint.h>
 
+#define RIP_CMD_RESPONSE 2
+#define RIP_2_VERSIN 2
+
 typedef struct rip_header {
 	uint8_t command;
 	uint8_t version;

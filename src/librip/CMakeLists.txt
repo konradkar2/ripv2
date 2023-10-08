@@ -7,6 +7,7 @@ add_library(${PROJECT_NAME}
         rip.c
         rip_messages.c
         rip_if.c
+        rip_handle_resp.c
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

@@ -2,6 +2,7 @@
 #include "logging.h"
 #include "rip_messages.h"
 
+#include "rip_handle_resp.h"
 #include "rip_if.h"
 #include "utils.h"
 #include <arpa/inet.h>
@@ -17,7 +18,6 @@
 
 #define RIP_PORT 520
 #define MSGBUFSIZE 1024 * 32
-#define ANY_IF_INDEX 0
 #define POLL_FDS_MAX_SIZE 128
 
 static void rip_if_entry_print(FILE *output, const rip_if_entry *e)
@@ -90,17 +90,19 @@ static int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 	}
 
 	char *buff_p = buff;
-	rip_header_print((const rip_header *)buff_p);
+
+	const rip_header *header = (const rip_header *)buff_p;
+	rip_header_print(header);
 	nbytes -= sizeof(rip_header);
 	buff_p += sizeof(rip_header);
 
-	const size_t entry_count = nbytes / sizeof(rip2_entry);
-
-	for (size_t i = 0; i < entry_count; ++i) {
-		printf("[%zu]\n", i);
-		rip2_entry_to_host((rip2_entry *)buff_p);
-		rip2_entry_print((const rip2_entry *)buff_p);
-		buff_p += sizeof(rip2_entry);
+	if (header->command == RIP_CMD_RESPONSE) {
+		const size_t n_entry = nbytes / sizeof(rip2_entry);
+		if (handle_response(rip_ctx, (rip2_entry *)buff_p, n_entry,
+				    addr_n.sin_addr)) {
+			LOG_ERR("Failed to handle response");
+			return 1;
+		}
 	}
 
 	return 0;
@@ -123,12 +125,12 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 }
 
 int rip_if_entry_find_by_fd(const rip_context *rip_ctx, const int fd,
-			    size_t *index_found)
+			    size_t *rip_ifs_idx)
 {
 	for (size_t i = 0; i < rip_ctx->rip_ifs_count; ++i) {
 		const rip_if_entry *entry = &rip_ctx->rip_ifs[i];
 		if (entry->fd == fd) {
-			*index_found = i;
+			*rip_ifs_idx = i;
 			return 0;
 		}
 	}
@@ -166,11 +168,10 @@ int rip_begin(rip_context *rip_ctx)
 				continue;
 			}
 
-			size_t rip_if_entry_index = 0;
-			if (!rip_if_entry_find_by_fd(rip_ctx,
-						     current_pollfd->fd,
-						     &rip_if_entry_index)) {
-				rip_handle_io(rip_ctx, rip_if_entry_index);
+			size_t rip_ifs_idx = 0;
+			if (!rip_if_entry_find_by_fd(
+				rip_ctx, current_pollfd->fd, &rip_ifs_idx)) {
+				rip_handle_io(rip_ctx, rip_ifs_idx);
 			} else {
 				LOG_ERR("Can't dispatch this event, fd: %d, "
 					"revents: %d",

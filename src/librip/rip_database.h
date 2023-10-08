@@ -13,8 +13,7 @@ typedef struct rip_db_entry {
 	rip_network network;
 	uint32_t metric;
 	struct in_addr next_hop;
-    int if_index_orig;
-    int timer_fd;
+    int if_index_origin;
 } rip_db_entry;
 
 #endif
