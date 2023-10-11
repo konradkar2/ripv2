@@ -1,0 +1,66 @@
+#rfc 2453
+[] implement RIP response processing
+    [x] The response must be ignored if it is not from the RIP port
+
+        // solved by bind
+
+    [?] The datagram's IPv4 source address should be checked to see whether the
+    datagram is from a valid neighbor; the source of the datagram must be
+    on a directly-connected network
+    
+        // not sure how to check that
+
+    [?] It is also worth checking to see
+        whether the response is from one of the router's own addresses.
+        Interfaces on broadcast networks may receive copies of their own
+        broadcasts/multicasts immediately.  If a router processes its own
+        output as new input, confusion is likely so such datagrams must be
+        ignored.
+
+        [?] solved by SO_BINDTODEVICE
+        [ ] MULTICAST_LOOPBACK tbd if needed
+
+    [] process the RTEs in the Response one by one.  Again, start by doing validation.
+        Incorrect metrics and other format errors usually indicate
+        misbehaving neighbors and should probably be brought to the
+        administrator's attention.  For example, if the metric is greater
+        than infinity, ignore the entry but log the event.  The basic
+        validation tests are:
+
+        [ ] is the destination address valid (e.g., unicast; not net 0 or 127)
+        [ ] is the metric valid (i.e., between 1 and 16, inclusive)
+        [ ] log the entry when invalid
+
+    [ ]  Once the entry has been validated, update the metric by adding the
+    cost of the network on which the message arrived.  If the result is
+    greater than infinity, use infinity.  That is,
+        metric = MIN (metric + cost, infinity)
+
+    [ ] Now, check to see whether there is already an explicit route for the
+        destination address.  If there is no such route, add this route to
+        the routing table, unless the metric is infinity (there is no point
+        in adding a route which is unusable).  Adding a route to the routing
+        table consists of:
+
+    [ ] Setting the destination address to the destination address in the
+                RTE
+
+    [ ] Setting the metric to the newly calculated metric (as described
+     above)
+
+    [ ] Set the next hop address to be the address of the router from which
+     the datagram came
+
+    [ ] Initialize the timeout for the route.  If the garbage-collection
+     timer is running for this route, stop it (see section 3.6 for a
+     discussion of the timers)
+
+    [ ] Set the route change flag
+
+    [ ] Signal the output process to trigger an update (see section 3.8.1)
+
+    [ ] If there is an existing route, compare the next hop address to the
+    address of the router from which the datagram came.  If this datagram
+    is from the same router as the existing route, reinitialize the
+    timeout.  Next, compare the metrics.  If the datagram is from the
+    same router as the existing route, and the new metric is different

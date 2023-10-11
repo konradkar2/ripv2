@@ -6,15 +6,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void rip2_entry_to_host(rip2_entry *r2e)
+void rip2_entry_ntoh(rip2_entry *r2e)
 {
-	r2e->routing_family_id = ntohs(r2e->routing_family_id);
-	r2e->route_tag	       = ntohs(r2e->routing_family_id);
-	// r2e->ip_address.s_addr	=
-	// ntohl((uint32_t)r2e->ip_address.s_addr); r2e->subnet_mask.s_addr =
-	// ntohl((uint32_t)r2e->subnet_mask.s_addr);
-	// r2e->next_hop.s_addr	= ntohl((uint32_t)r2e->next_hop.s_addr);
-	r2e->metric = ntohl(r2e->metric);
+	r2e->routing_family_id	= ntohs(r2e->routing_family_id);
+	r2e->route_tag		= ntohs(r2e->routing_family_id);
+	
+	//keep addresses in network byte oreder
+	//r2e->ip_address.s_addr	= ntohl((uint32_t)r2e->ip_address.s_addr);
+	//r2e->subnet_mask.s_addr = ntohl((uint32_t)r2e->subnet_mask.s_addr);
+	//r2e->next_hop.s_addr	= ntohl((uint32_t)r2e->next_hop.s_addr);
+	r2e->metric		= ntohl(r2e->metric);
 }
 
 void rip_header_print(const rip_header *r_h)

@@ -13,11 +13,13 @@ add_executable(tests
     test.c
     main.c
     vector_test.c
+    rip_handle_resp_test.c
 )
 
 add_test(UTILS tests COMMAND tests)
 
 target_link_libraries(tests
     utils
+    librip
 )
 
