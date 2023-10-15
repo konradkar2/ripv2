@@ -4,6 +4,7 @@
 
 #include "rip_handle_resp.h"
 #include "rip_if.h"
+#include "rip_route.h"
 #include "utils.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
@@ -141,6 +142,10 @@ int rip_if_entry_find_by_fd(const rip_context *rip_ctx, const int fd,
 int rip_begin(rip_context *rip_ctx)
 {
 	LOG_INFO("%s", __func__);
+
+	struct rip_route * rr = rip_route_alloc_init();
+	rip_route_print_table(rr);
+	//rip_route_free(rr);
 
 	if (setup_resources(rip_ctx)) {
 		LOG_ERR("failed to setup_resources");

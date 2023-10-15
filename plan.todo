@@ -27,11 +27,11 @@
         than infinity, ignore the entry but log the event.  The basic
         validation tests are:
 
-        [ ] is the destination address valid (e.g., unicast; not net 0 or 127)
-        [ ] is the metric valid (i.e., between 1 and 16, inclusive)
-        [ ] log the entry when invalid
+        [x] is the destination address valid (e.g., unicast; not net 0 or 127)
+        [x] is the metric valid (i.e., between 1 and 16, inclusive)
+        [x] log the entry when invalid
 
-    [ ]  Once the entry has been validated, update the metric by adding the
+    [x]  Once the entry has been validated, update the metric by adding the
     cost of the network on which the message arrived.  If the result is
     greater than infinity, use infinity.  That is,
         metric = MIN (metric + cost, infinity)

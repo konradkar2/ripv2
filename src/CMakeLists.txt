@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 project(rip VERSION 1.0)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -Wunused -Wcast-align -fsanitize=undefined")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -Wpedantic -Wunused -Wcast-align -fsanitize=undefined")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_TESTING "" OFF)

@@ -1,38 +1,36 @@
 #include "test.h"
 #include <netinet/in.h>
 #include <rip_handle_resp.h>
+#include <stdint.h>
+
+uint32_t my_ptoh(const char *addr_p)
+{
+	struct in_addr addr = {0};
+	int res		    = inet_pton(AF_INET, addr_p, &addr);
+	assert(res == 1);
+
+	return ntohl(addr.s_addr);
+}
 
 REGISTER_TEST(valid_mask_test)
 {
-	struct in_addr addr = {0};
-	inet_pton(AF_INET, "255.255.255.0", &addr);
-	ASSERT(is_net_mask_valid(addr));
+	ASSERT(is_net_mask_valid(my_ptoh("255.255.255.0")));
+	ASSERT(is_net_mask_valid(my_ptoh("255.255.255.254")));
+	ASSERT(false == is_net_mask_valid(my_ptoh("128.255.255.0")));
+	ASSERT(false == is_net_mask_valid(my_ptoh("254.255.255.0")));
 
-	inet_pton(AF_INET, "255.255.255.255", &addr);
-	ASSERT(is_net_mask_valid(addr));
-
-	inet_pton(AF_INET, "128.0.0.0", &addr);
-	ASSERT(is_net_mask_valid(addr));
-
-	inet_pton(AF_INET, "0.255.255.0", &addr);
-	ASSERT(false == is_net_mask_valid(addr));
+	ASSERT(false == is_net_mask_valid(my_ptoh("255.255.255.255")));
+	ASSERT(false == is_net_mask_valid(my_ptoh("0.255.255.0")));
 }
 
 REGISTER_TEST(is_unicast_address)
 {
-	struct in_addr addr = {0};
-	inet_pton(AF_INET, "10.0.0.1", &addr);
-	ASSERT(is_unicast_address(addr));
 
-	inet_pton(AF_INET, "123.52.52.3", &addr);
-	ASSERT(is_unicast_address(addr));
+	ASSERT(is_unicast_address(my_ptoh("10.0.0.1")));
+	ASSERT(is_unicast_address(my_ptoh("123.52.52.3")));
 
-	inet_pton(AF_INET, "127.0.0.0", &addr);
-	ASSERT(false == is_unicast_address(addr));
-
-	inet_pton(AF_INET, "0.0.0.0", &addr);
-	ASSERT(false == is_unicast_address(addr));
-
-	inet_pton(AF_INET, "224.0.0.0", &addr);
-	ASSERT(false == is_unicast_address(addr));
+	ASSERT(false == is_unicast_address(my_ptoh("127.0.0.0")));
+	ASSERT(false == is_unicast_address(my_ptoh("0.0.0.0")));
+	ASSERT(false == is_unicast_address(my_ptoh("224.0.0.0")));
+	ASSERT(false == is_unicast_address(my_ptoh("245.0.0.5")));
 }

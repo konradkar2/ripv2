@@ -17,7 +17,13 @@ RUN apt-get update && apt-get install -yq \
   xterm \ 
   sudo \
   pip \
-  valgrind
+  valgrind \
+  pkg-config
+
+#lib deps
+RUN apt-get install -yq \
+  libnl-3-dev \
+  libnl-route-3-dev
 
 #FRR
 RUN apt-get install lsb-release -yq

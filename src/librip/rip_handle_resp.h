@@ -6,10 +6,15 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+
 int handle_response(rip_context *ctx, rip2_entry entries[], size_t n_entry,
 		    const struct in_addr sender);
 
-bool is_unicast_address(struct in_addr address);
-bool is_net_mask_valid(struct in_addr net_mask);
+
+bool is_unicast_address(uint32_t address);
+bool is_net_mask_valid(uint32_t net_mask);
+
+bool is_metric_valid(uint32_t metric);
 
 #endif

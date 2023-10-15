@@ -8,14 +8,12 @@
 
 void rip2_entry_ntoh(rip2_entry *r2e)
 {
-	r2e->routing_family_id	= ntohs(r2e->routing_family_id);
-	r2e->route_tag		= ntohs(r2e->routing_family_id);
-	
-	//keep addresses in network byte oreder
-	//r2e->ip_address.s_addr	= ntohl((uint32_t)r2e->ip_address.s_addr);
-	//r2e->subnet_mask.s_addr = ntohl((uint32_t)r2e->subnet_mask.s_addr);
-	//r2e->next_hop.s_addr	= ntohl((uint32_t)r2e->next_hop.s_addr);
-	r2e->metric		= ntohl(r2e->metric);
+	r2e->routing_family_id = ntohs(r2e->routing_family_id);
+	r2e->route_tag	       = ntohs(r2e->routing_family_id);
+	r2e->ip_address	       = ntohl(r2e->ip_address);
+	r2e->subnet_mask       = ntohl(r2e->subnet_mask);
+	r2e->next_hop	       = ntohl(r2e->next_hop);
+	r2e->metric	       = ntohl(r2e->metric);
 }
 
 void rip_header_print(const rip_header *r_h)
@@ -35,13 +33,13 @@ void rip2_entry_print(const rip2_entry *r2_e)
 	printf("\trouting_family_id: %" PRId16 "\n", r2_e->routing_family_id);
 	printf("\troute_tag: %" PRId16 "\n", r2_e->route_tag);
 
-	inet_ntop(AF_INET, &(r2_e->ip_address.s_addr), str, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &(r2_e->ip_address), str, INET_ADDRSTRLEN);
 	printf("\tip_address: %s\n", str);
 
-	inet_ntop(AF_INET, &(r2_e->subnet_mask.s_addr), str, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &(r2_e->subnet_mask), str, INET_ADDRSTRLEN);
 	printf("\tsubnet_mask: %s\n", str);
 
-	inet_ntop(AF_INET, &(r2_e->next_hop.s_addr), str, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &(r2_e->next_hop), str, INET_ADDRSTRLEN);
 	printf("\tnext_hop: %s\n", str);
 	printf("\tmetric: %" PRId8 "\n", r2_e->metric);
 

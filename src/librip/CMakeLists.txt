@@ -2,15 +2,23 @@ cmake_minimum_required(VERSION 3.10)
 
 project(librip VERSION 1.0)
 
-add_library(${PROJECT_NAME}
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBNL3 REQUIRED libnl-3.0 libnl-route-3.0)
+
+add_library(librip
         STATIC
         rip.c
         rip_messages.c
         rip_if.c
         rip_handle_resp.c
+        rip_route.c
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_link_libraries(librip PRIVATE
+        ${LIBNL3_LIBRARIES}
+)
+
+target_include_directories(librip PUBLIC
+        ${LIBNL3_INCLUDE_DIRS}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
-
