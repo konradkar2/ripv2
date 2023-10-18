@@ -17,6 +17,7 @@ typedef struct {
 	rip_timer t_update;
 	rip_timer t_timeout;
 	rip_timer t_garbage_collection;
+	struct rip_route *route_mngr;
 } rip_context;
 
 int rip_begin(rip_context *rip_ctx);

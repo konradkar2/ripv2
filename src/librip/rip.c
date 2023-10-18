@@ -117,12 +117,17 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 	assert("too small pollfds capacity" &&
 	       pollfds_capacity >= rip_ctx->rip_ifs_count);
 
-	for (size_t i = 0; i < rip_ctx->rip_ifs_count; ++i) {
+	size_t i = 0;
+	for (; i < rip_ctx->rip_ifs_count; ++i) {
 		pollfds[i].fd	  = rip_ctx->rip_ifs[i].fd;
 		pollfds[i].events = POLLIN;
 	}
-	// tbd: more fds like for timers, terminal interaction
-	*actual_pollfds_count = rip_ctx->rip_ifs_count;
+	pollfds[++i] = (struct pollfd){
+	    .fd	    = rip_route_getfd(rip_ctx->route_mngr),
+	    .events = POLLIN,
+	}; // tbd: more fds like for timers, terminal interaction
+
+	*actual_pollfds_count = i + 1;
 }
 
 int rip_if_entry_find_by_fd(const rip_context *rip_ctx, const int fd,
@@ -143,9 +148,11 @@ int rip_begin(rip_context *rip_ctx)
 {
 	LOG_INFO("%s", __func__);
 
-	struct rip_route * rr = rip_route_alloc_init();
-	rip_route_print_table(rr);
-	//rip_route_free(rr);
+	rip_ctx->route_mngr = rip_route_alloc_init();
+	if (!rip_ctx->route_mngr) {
+		return 1;
+	}
+	rip_route_print_table(rip_ctx->route_mngr);
 
 	if (setup_resources(rip_ctx)) {
 		LOG_ERR("failed to setup_resources");
@@ -174,8 +181,13 @@ int rip_begin(rip_context *rip_ctx)
 			}
 
 			size_t rip_ifs_idx = 0;
-			if (!rip_if_entry_find_by_fd(
-				rip_ctx, current_pollfd->fd, &rip_ifs_idx)) {
+			if (rip_route_getfd(rip_ctx->route_mngr) ==
+			    current_pollfd->fd) {
+				LOG_INFO("Event on rip_route, calling update");
+				rip_route_update(rip_ctx->route_mngr);
+			} else if (!rip_if_entry_find_by_fd(rip_ctx,
+							    current_pollfd->fd,
+							    &rip_ifs_idx)) {
 				rip_handle_io(rip_ctx, rip_ifs_idx);
 			} else {
 				LOG_ERR("Can't dispatch this event, fd: %d, "
