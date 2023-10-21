@@ -127,6 +127,10 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 	    .fd	    = rip_route_getfd(rip_ctx->route_mngr),
 	    .events = POLLIN,
 	};
+	pollfds[++i] = (struct pollfd){
+	    .fd	    = rip_ipc_getfd(rip_ctx->ipc_mngr),
+	    .events = POLLIN,
+	};
 
 	*actual_pollfds_count = i + 1;
 }
@@ -153,6 +157,9 @@ int rip_begin(rip_context *rip_ctx)
 	if (!rip_ctx->route_mngr) {
 		return 1;
 	}
+
+	rip_route_print_table(rip_ctx->route_mngr);
+
 	rip_ctx->ipc_mngr = rip_ipc_alloc();
 	if (!rip_ctx->ipc_mngr) {
 		return 1;
@@ -160,7 +167,7 @@ int rip_begin(rip_context *rip_ctx)
 	struct rip_ipc_cmd_handler handlers[] = {
 	    [0] = {.cmd	 = dump_routing_table,
 		   .data = rip_ctx->route_mngr,
-		   .cb	 = rip_route_print_table}};
+		   .cb	 = rip_route_sprintf_table}};
 
 	if (rip_ipc_init(rip_ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
 		return 1;
@@ -187,25 +194,27 @@ int rip_begin(rip_context *rip_ctx)
 		}
 
 		for (nfds_t i = 0; i < actual_pollfds_count; ++i) {
-			const struct pollfd *current_pollfd = &pollfds[i];
-			if (!(current_pollfd->revents & POLLIN)) {
+			int revents = pollfds[i].revents;
+			int fd	    = pollfds[i].fd;
+
+			if (!(revents & POLLIN)) {
 				continue;
 			}
 
 			size_t rip_ifs_idx = 0;
-			if (rip_route_getfd(rip_ctx->route_mngr) ==
-			    current_pollfd->fd) {
+			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
 				LOG_INFO("Event on rip_route, calling update");
 				rip_route_update(rip_ctx->route_mngr);
-			} else if (!rip_if_entry_find_by_fd(rip_ctx,
-							    current_pollfd->fd,
+			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
+				LOG_INFO("Event on rip_ipc");
+				rip_ipc_handle_msg(rip_ctx->ipc_mngr);
+			} else if (!rip_if_entry_find_by_fd(rip_ctx, fd,
 							    &rip_ifs_idx)) {
 				rip_handle_io(rip_ctx, rip_ifs_idx);
 			} else {
 				LOG_ERR("Can't dispatch this event, fd: %d, "
 					"revents: %d",
-					current_pollfd->fd,
-					current_pollfd->revents);
+					fd, revents);
 				return 1;
 			}
 		}

@@ -10,6 +10,8 @@ void rip_route_free(struct rip_route *);
 int rip_route_getfd(struct rip_route *);
 void rip_route_update(struct rip_route *);
 
-int rip_route_print_table(char *resp_buffer, size_t buffer_size, void *data);
+
+void rip_route_print_table(struct rip_route *);
+int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data);
 
 #endif

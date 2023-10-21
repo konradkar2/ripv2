@@ -21,11 +21,21 @@ add_subdirectory(librip)
 add_subdirectory(utils)
 
 add_executable(rip
-    main.c
+    ripd.c
 )
+
+add_executable(rip-cli
+    rip_cli.c
+)
+
 target_link_libraries(rip
+    librip
+)
+
+target_link_libraries(rip-cli
     librip
 )
 
 # Installation
 install(TARGETS rip DESTINATION bin)
+install(TARGETS rip-cli DESTINATION bin)

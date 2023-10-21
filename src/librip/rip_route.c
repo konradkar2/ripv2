@@ -23,18 +23,17 @@ struct cache_and_filter {
 	struct nl_object *filter;
 };
 
-static void dump_caches(struct rip_route *rr, char *buffer, size_t buffsize)
+static void dump_caches(struct rip_route *rr,
+			struct nl_dump_params *dump_params)
 {
-	struct nl_dump_params dump_params = {.dp_buf	= buffer,
-					     .dp_buflen = buffsize};
-
 	struct cache_and_filter dumps[] = {
 	    {.cache = rr->route_cache, .filter = OBJ_CAST(rtnl_route_alloc())},
-	    {.cache = rr->link_cache, .filter = OBJ_CAST(rtnl_link_alloc())}};
+	    // {.cache = rr->link_cache, .filter = OBJ_CAST(rtnl_link_alloc())}
+	};
 
 	for (size_t i = 0; i < ARRAY_LEN(dumps); ++i) {
 		if (dumps[i].filter) {
-			nl_cache_dump_filter(dumps[i].cache, &dump_params,
+			nl_cache_dump_filter(dumps[i].cache, dump_params,
 					     dumps[i].filter);
 			nl_object_free(dumps[i].filter);
 		}
@@ -122,12 +121,28 @@ void rip_route_update(struct rip_route *rr)
 	}
 }
 
-int rip_route_print_table(char *resp_buffer, size_t buffer_size, void *data)
+void rip_route_print_table(struct rip_route *ri)
+{
+	struct nl_dump_params dump_params = {
+	    .dp_fd   = stdout,
+	    .dp_type = NL_DUMP_LINE,
+	};
+
+	dump_caches(ri, &dump_params);
+}
+
+int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data)
 {
 	assert(data);
 
-	struct rip_route *mngr = data;
-	dump_caches(mngr, resp_buffer, buffer_size);
+	struct rip_route *mngr		  = data;
+	struct nl_dump_params dump_params = {
+	    .dp_buf    = resp_buffer,
+	    .dp_buflen = buffer_size,
+	    .dp_type   = NL_DUMP_LINE,
+	};
+
+	dump_caches(mngr, &dump_params);
 
 	return 0;
 }
