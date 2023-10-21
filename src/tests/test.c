@@ -5,7 +5,7 @@
 test_fixture all_tests[MAX_TESTS];
 size_t num_tests = 0;
 
-int run_all_tests()
+int run_all_tests(void)
 {
 	int ret	      = 0;
 	size_t failed = 0;

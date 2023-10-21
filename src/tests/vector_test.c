@@ -1,7 +1,6 @@
 #include "test.h"
 #include "vector.h"
-
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+#include "utils.h"
 
 typedef struct {
 	char a;

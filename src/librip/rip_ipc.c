@@ -1,4 +1,142 @@
-#ifndef RIP_IPC_H
-#define RIP_IPC_H
+#include "rip_ipc.h"
+#include "logging.h"
+#include "utils.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <mqueue.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 
-#endif
+#define RIP_DEAMON_QUEUE "/rip_queue"
+#define RIP_CLI_QUEUE "/rip_queue"
+#define CLI_QUEUE_NAME_SIZE 32
+#define REQ_BUFFER_SIZE 128
+#define RESP_OUTPUT_SIZE 32 * 1024
+
+enum cmd_status { success = 0, failed };
+
+struct rip_ipc {
+	mqd_t fd;
+	struct rip_ipc_cmd_handler *cmd_h;
+	size_t cmd_h_len;
+};
+
+static struct rip_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
+						enum rip_ipc_cmd cmd)
+{
+	for (size_t i = 0; i < ri->cmd_h_len; ++i) {
+		struct rip_ipc_cmd_handler *hl = &ri->cmd_h[i];
+		if (cmd == hl->cmd) {
+			return hl;
+		}
+	}
+	return NULL;
+}
+
+struct ipc_request {
+	uint32_t cmd;
+};
+
+struct ipc_response {
+	uint32_t cmd_status;
+	char output[RESP_OUTPUT_SIZE - 4];
+};
+
+struct rip_ipc *rip_ipc_alloc(void)
+{
+	return calloc(sizeof(struct rip_ipc), 1);
+}
+void rip_ipc_free(struct rip_ipc *ri) { free(ri); }
+
+static mqd_t ipc_open(const char *mq_name, int flags)
+{
+	mqd_t fd;
+
+	fd = mq_open(mq_name, flags);
+	if (fd == -1) {
+		LOG_ERR("mq_open(%s) failed: %s", mq_name, strerror(errno));
+		return -1;
+	}
+
+	return fd;
+}
+
+int rip_ipc_init(struct rip_ipc *ri, struct rip_ipc_cmd_handler handlers[],
+		 size_t len)
+{
+	mqd_t fd;
+	if (ri->fd > 0) {
+		BUG();
+	}
+
+	fd = ipc_open(RIP_DEAMON_QUEUE, O_RDONLY | O_CREAT | O_NONBLOCK);
+	if (fd == -1) {
+		return 1;
+	}
+
+	ri->fd	      = fd;
+	ri->cmd_h     = handlers;
+	ri->cmd_h_len = len;
+
+	return 0;
+}
+int rip_ipc_get_fd(struct rip_ipc *ri) { return ri->fd; }
+
+void rip_ipc_handle_msg(struct rip_ipc *ri)
+{
+	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
+	ssize_t n_bytes;
+	struct ipc_request *req;
+	struct rip_ipc_cmd_handler *hl;
+	mqd_t clients_q;
+	struct ipc_response *response = NULL;
+
+	n_bytes = mq_receive(ri->fd, ipc_req_buffer, REQ_BUFFER_SIZE, NULL);
+	if (n_bytes < 0) {
+		LOG_ERR("mq_receive failed: %s", strerror(errno));
+		return;
+	}
+
+	req	  = (struct ipc_request *)ipc_req_buffer;
+	clients_q = ipc_open(RIP_CLI_QUEUE, O_WRONLY);
+	if (clients_q == -1) {
+		goto cleanup;
+	}
+
+	response = calloc(1, sizeof(struct ipc_response));
+	if (!response) {
+		LOG_ERR("calloc failed");
+		goto cleanup;
+	}
+
+	hl = find_handler(ri, req->cmd);
+	if (!hl) {
+		LOG_ERR("Handler not found, cmd: %d", req->cmd);
+		goto cleanup;
+	}
+
+	int status =
+	    hl->cb(response->output, sizeof(response->output), hl->data);
+	if (status != 0) {
+		LOG_ERR("Failed to execute: %d", hl->cmd);
+		response->cmd_status = failed;
+	}
+
+	response->cmd_status = success;
+	if (mq_send(clients_q, (const char *)response,
+		    sizeof(struct ipc_response), 0) == -1) {
+		LOG_ERR("mq_send failed: %s", strerror(errno));
+	}
+
+cleanup:
+	free(response);
+	mq_close(clients_q);
+}
+
+int rip_ipc_init_cli(struct rip_ipc *ri)
+{
+	(void)ri;
+	return ipc_open(RIP_DEAMON_QUEUE, O_WRONLY);
+}

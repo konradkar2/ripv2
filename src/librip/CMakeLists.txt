@@ -12,6 +12,7 @@ add_library(librip
         rip_if.c
         rip_handle_resp.c
         rip_route.c
+        rip_ipc.c
 )
 
 target_link_libraries(librip PRIVATE

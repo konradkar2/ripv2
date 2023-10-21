@@ -1,5 +1,6 @@
 #include "rip.h"
 #include "logging.h"
+#include "rip_ipc.h"
 #include "rip_messages.h"
 
 #include "rip_handle_resp.h"
@@ -125,7 +126,7 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 	pollfds[++i] = (struct pollfd){
 	    .fd	    = rip_route_getfd(rip_ctx->route_mngr),
 	    .events = POLLIN,
-	}; // tbd: more fds like for timers, terminal interaction
+	};
 
 	*actual_pollfds_count = i + 1;
 }
@@ -152,14 +153,25 @@ int rip_begin(rip_context *rip_ctx)
 	if (!rip_ctx->route_mngr) {
 		return 1;
 	}
-	rip_route_print_table(rip_ctx->route_mngr);
+	rip_ctx->ipc_mngr = rip_ipc_alloc();
+	if (!rip_ctx->ipc_mngr) {
+		return 1;
+	}
+	struct rip_ipc_cmd_handler handlers[] = {
+	    [0] = {.cmd	 = dump_routing_table,
+		   .data = rip_ctx->route_mngr,
+		   .cb	 = rip_route_print_table}};
+
+	if (rip_ipc_init(rip_ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
+		return 1;
+	}
 
 	if (setup_resources(rip_ctx)) {
 		LOG_ERR("failed to setup_resources");
 		return 1;
 	}
 
-	LOG_INFO("Waiting for messages...");
+	LOG_INFO("Waiting for events...");
 
 	struct pollfd pollfds[POLL_FDS_MAX_SIZE];
 	MEMSET_ZERO(pollfds);

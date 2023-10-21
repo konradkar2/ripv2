@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <netinet/in.h>
+#include <stdalign.h>
 #include <stdint.h>
 
 #define RIP_CMD_RESPONSE 2
@@ -29,5 +30,7 @@ void rip2_entry_print(const rip2_entry *);
 
 static_assert(sizeof(rip_header) == 4);
 static_assert(sizeof(rip2_entry) == 20);
+static_assert(_Alignof(rip_header) == 1);
+static_assert(_Alignof(rip2_entry) == 4);
 
 #endif

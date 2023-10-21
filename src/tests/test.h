@@ -9,7 +9,7 @@ typedef struct {
 	void (*func)(int *status);
 } test_fixture;
 
-int run_all_tests();
+int run_all_tests(void);
 void add_test(test_fixture test);
 
 #define ASSERT(expr)                                                           \
