@@ -62,14 +62,14 @@ static inline void update_metric(uint32_t *metric)
 	*metric = MIN(*metric + 1, INFINITY_METRIC);
 }
 
-int handle_response(rip_context *ctx, rip2_entry entries[], size_t n_entry,
+int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entry,
 		    const struct in_addr sender)
 {
 	(void)ctx;
 	(void)sender;
 
 	for (size_t i = 0; i < n_entry; ++i) {
-		rip2_entry *entry = &entries[i];
+		struct rip2_entry *entry = &entries[i];
 
 		printf("[%zu]\n", i);
 		rip2_entry_ntoh(entry);

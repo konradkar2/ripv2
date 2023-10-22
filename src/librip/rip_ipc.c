@@ -14,19 +14,17 @@
 #define REQ_BUFFER_SIZE 128
 #define QUEUE_PERMISSIONS 0660;
 
-enum cmd_status { success = 0, failed };
-
 struct rip_ipc {
 	mqd_t fd;
-	struct rip_ipc_cmd_handler *cmd_h;
+	struct r_ipc_cmd_handler *cmd_h;
 	size_t cmd_h_len;
 };
 
-static struct rip_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
+static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
 						enum rip_ipc_cmd cmd)
 {
 	for (size_t i = 0; i < ri->cmd_h_len; ++i) {
-		struct rip_ipc_cmd_handler *hl = &ri->cmd_h[i];
+		struct r_ipc_cmd_handler *hl = &ri->cmd_h[i];
 		if (cmd == hl->cmd) {
 			return hl;
 		}
@@ -67,7 +65,7 @@ static mqd_t ipc_open(const char *mq_name, int flags, mode_t *rights,
 	return fd;
 }
 
-int rip_ipc_init(struct rip_ipc *ri, struct rip_ipc_cmd_handler handlers[],
+int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
 		 size_t len)
 {
 	mqd_t fd;
@@ -96,7 +94,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
 	ssize_t n_bytes;
 	struct ipc_request *req;
-	struct rip_ipc_cmd_handler *hl;
+	struct r_ipc_cmd_handler *hl;
 	mqd_t cli_q;
 	struct ipc_response *response = NULL;
 

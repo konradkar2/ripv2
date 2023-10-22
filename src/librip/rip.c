@@ -19,8 +19,7 @@
 #include <time.h>
 
 #define RIP_PORT 520
-#define MSGBUFSIZE 1024 * 32
-#define POLL_FDS_MAX_SIZE 128
+#define POLL_FDS_MAX_LEN 128
 
 static void rip_if_entry_print(FILE *output, const rip_if_entry *e)
 {
@@ -31,6 +30,9 @@ static void rip_if_entry_print(FILE *output, const rip_if_entry *e)
 static int rip_if_entry_setup_resources(rip_if_entry *if_entry)
 {
 	if (create_udp_socket(&if_entry->fd)) {
+		return 1;
+	}
+	if (set_nonblocking(if_entry->fd)) {
 		return 1;
 	}
 	if (bind_to_device(if_entry->fd, if_entry->if_name)) {
@@ -66,15 +68,20 @@ static int setup_resources(rip_context *rip_ctx)
 	return 0;
 }
 
-static int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
+struct msg_buffer {
+	struct rip_header header;
+	struct rip2_entry entries[500];
+};
+
+int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 {
 	const rip_if_entry *rip_if_e = &rip_ctx->rip_ifs[rip_if_entry_idx];
 
-	char buff[MSGBUFSIZE];
+	struct msg_buffer msg_buffer;
 	struct sockaddr_in addr_n;
 	socklen_t addrlen = sizeof(addr_n);
-	ssize_t nbytes	  = recvfrom(rip_if_e->fd, buff, MSGBUFSIZE, 0,
-				     (struct sockaddr *)&addr_n, &addrlen);
+	ssize_t nbytes = recvfrom(rip_if_e->fd, &msg_buffer, sizeof(msg_buffer),
+				  0, (struct sockaddr *)&addr_n, &addrlen);
 	if (nbytes < 0) {
 		LOG_ERR("recvfrom failed: %s", strerror(errno));
 		return 1;
@@ -91,16 +98,12 @@ static int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 		return 1;
 	}
 
-	char *buff_p = buff;
+	rip_header_print(&msg_buffer.header);
+	nbytes -= sizeof(msg_buffer.header);
 
-	const rip_header *header = (const rip_header *)buff_p;
-	rip_header_print(header);
-	nbytes -= sizeof(rip_header);
-	buff_p += sizeof(rip_header);
-
-	if (header->command == RIP_CMD_RESPONSE) {
-		const size_t n_entry = nbytes / sizeof(rip2_entry);
-		if (handle_response(rip_ctx, (rip2_entry *)buff_p, n_entry,
+	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
+		const size_t n_entry = nbytes / sizeof(struct rip2_entry);
+		if (handle_response(rip_ctx, msg_buffer.entries, n_entry,
 				    addr_n.sin_addr)) {
 			LOG_ERR("Failed to handle response");
 			return 1;
@@ -164,7 +167,7 @@ int rip_begin(rip_context *rip_ctx)
 	if (!rip_ctx->ipc_mngr) {
 		return 1;
 	}
-	struct rip_ipc_cmd_handler handlers[] = {
+	struct r_ipc_cmd_handler handlers[] = {
 	    [0] = {.cmd	 = dump_routing_table,
 		   .data = rip_ctx->route_mngr,
 		   .cb	 = rip_route_sprintf_table}};
@@ -180,12 +183,12 @@ int rip_begin(rip_context *rip_ctx)
 
 	LOG_INFO("Waiting for events...");
 
-	struct pollfd pollfds[POLL_FDS_MAX_SIZE];
+	struct pollfd pollfds[POLL_FDS_MAX_LEN];
 	MEMSET_ZERO(pollfds);
 
 	while (1) {
 		nfds_t actual_pollfds_count = 0;
-		assign_fds_to_pollfds(rip_ctx, pollfds, POLL_FDS_MAX_SIZE,
+		assign_fds_to_pollfds(rip_ctx, pollfds, POLL_FDS_MAX_LEN,
 				      &actual_pollfds_count);
 		assert("actual_pollfds_count" && actual_pollfds_count > 0);
 

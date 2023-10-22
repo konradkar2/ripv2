@@ -35,7 +35,7 @@ int vector_add_el(vector *vec, void *element, size_t el_size)
 
 	char *data = (char *)vec->data;
 	void *dest = data + (vec->length * vec->el_size);
-	memcpy(dest, element, el_size);
+	memcpy(dest, element, el_size); //NOLINT
 	++vec->length;
 
 	return 0;
@@ -51,7 +51,7 @@ int vector_del_el(vector *vec, size_t idx)
 	void *dest = data + (idx * vec->el_size);
 	void *src  = data + ((idx + 1) * vec->el_size);
 	size_t n   = (vec->total_length - idx) * vec->el_size;
-	memmove(dest, src, n);
+	memmove(dest, src, n); //NOLINT
 	--vec->length;
 
 	return 0;

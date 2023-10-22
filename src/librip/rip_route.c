@@ -45,7 +45,7 @@ struct rip_route *rip_route_alloc_init(void)
 	struct rip_route *rr;
 	int err;
 
-	rr = malloc(sizeof(struct rip_route));
+	rr = calloc(1, sizeof(struct rip_route));
 
 	if (!rr) {
 		LOG_ERR("%s: malloc", __func__);
@@ -99,12 +99,15 @@ error:
 
 void rip_route_free(struct rip_route *rr)
 {
-	if (rr) {
-		nl_cache_mngr_free(rr->mngr);
-		nl_cache_free(rr->link_cache);
-		nl_cache_free(rr->route_cache);
-		nl_socket_free(rr->sock);
+	if (!rr) {
+		return;
 	}
+
+	nl_cache_mngr_free(rr->mngr);
+	nl_cache_free(rr->link_cache);
+	nl_cache_free(rr->route_cache);
+	nl_socket_free(rr->sock);
+	free(rr);
 }
 
 int rip_route_getfd(struct rip_route *rr)

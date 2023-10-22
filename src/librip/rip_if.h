@@ -17,5 +17,6 @@ int set_allow_reuse_port(int fd);
 int bind_port(int fd);
 int join_multicast(int fd, int if_index);
 int bind_to_device(int fd, const char if_name[IF_NAMESIZE]);
+int set_nonblocking(int fd);
 
 #endif

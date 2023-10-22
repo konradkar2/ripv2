@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void rip2_entry_ntoh(rip2_entry *r2e)
+void rip2_entry_ntoh(struct rip2_entry *r2e)
 {
 	r2e->routing_family_id = ntohs(r2e->routing_family_id);
 	r2e->route_tag	       = ntohs(r2e->routing_family_id);
@@ -16,7 +16,7 @@ void rip2_entry_ntoh(rip2_entry *r2e)
 	r2e->metric	       = ntohl(r2e->metric);
 }
 
-void rip_header_print(const rip_header *r_h)
+void rip_header_print(const struct rip_header *r_h)
 {
 	printf("{\n");
 	printf("\tcommand: %" PRId8 "\n", r_h->command);
@@ -25,7 +25,7 @@ void rip_header_print(const rip_header *r_h)
 	fflush(stdout);
 }
 
-void rip2_entry_print(const rip2_entry *r2_e)
+void rip2_entry_print(const struct rip2_entry *r2_e)
 {
 	char str[INET_ADDRSTRLEN];
 

@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-int handle_response(rip_context *ctx, rip2_entry entries[], size_t n_entry,
+int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entry,
 		    const struct in_addr sender);
 
 
