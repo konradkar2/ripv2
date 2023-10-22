@@ -1,8 +1,8 @@
 #include "rip_route.h"
 #include "logging.h"
-#include "netlink/cache.h"
-#include "netlink/errno.h"
-#include "netlink/netlink.h"
+#include <netlink/cache.h>
+#include <netlink/errno.h>
+#include <netlink/netlink.h>
 #include "utils.h"
 #include <assert.h>
 #include <netlink/handlers.h>
@@ -92,7 +92,6 @@ struct rip_route *rip_route_alloc_init(void)
 
 	return rr;
 error:
-	LOG_ERR("goto error");
 	rip_route_free(rr);
 	return NULL;
 }

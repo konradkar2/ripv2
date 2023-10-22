@@ -126,10 +126,10 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	    hl->cb(response->output, sizeof(response->output), hl->data);
 	if (status != 0) {
 		LOG_ERR("Failed to execute: %d", hl->cmd);
-		response->cmd_status = failed;
+		response->cmd_status = r_cmd_status_failed;
 	}
 
-	response->cmd_status = success;
+	response->cmd_status = r_cmd_status_success;
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
 		    0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));

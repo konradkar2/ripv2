@@ -22,7 +22,6 @@ int main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 	signal(SIGINT, sig_handler);
-	signal(SIGSEGV, sig_handler);
 
 	rip_context rip_ctx = {
 	    .rip_ifs_count = 2,

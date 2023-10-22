@@ -18,7 +18,7 @@ struct r_ipc_cmd_handler {
 
 #define RESP_OUTPUT_SIZE 32 * 1024
 
-enum r_cmd_status { success = 0, failed };
+enum r_cmd_status { r_cmd_status_success = 0, r_cmd_status_failed };
 struct ipc_request {
 	uint32_t cmd;
 };

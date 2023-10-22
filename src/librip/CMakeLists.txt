@@ -6,7 +6,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBNL3 REQUIRED libnl-3.0 libnl-route-3.0)
 
 add_library(librip
-        STATIC
+        STATIC 
         rip.c
         rip_messages.c
         rip_if.c
@@ -19,7 +19,10 @@ target_link_libraries(librip PRIVATE
         ${LIBNL3_LIBRARIES}
 )
 
-target_include_directories(librip PUBLIC
+target_include_directories(librip PRIVATE
         ${LIBNL3_INCLUDE_DIRS}
+)
+
+target_include_directories(librip PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )

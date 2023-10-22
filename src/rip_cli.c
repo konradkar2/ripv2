@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 	signal(SIGINT, sig_handler);
-	signal(SIGSEGV, sig_handler);
 
 	struct rip_ipc *rip_ipc = rip_ipc_alloc();
 	if (!rip_ipc) {
@@ -33,10 +32,10 @@ int main(int argc, char *argv[])
 
 	rip_ipc_send_msg_cli(rip_ipc, req, &resp);
 
-	if (resp.cmd_status == 1) {
+	if (resp.cmd_status == r_cmd_status_failed) {
 		LOG_ERR("Failed to execute cmd\n");
 	}
-	printf("%s\n", resp.output);
+	printf("%s", resp.output);
 
 	return 0;
 }
