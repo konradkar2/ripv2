@@ -126,16 +126,16 @@ static void assign_fds_to_pollfds(const rip_context *rip_ctx,
 		pollfds[i].fd	  = rip_ctx->rip_ifs[i].fd;
 		pollfds[i].events = POLLIN;
 	}
-	pollfds[++i] = (struct pollfd){
+	pollfds[i++] = (struct pollfd){
 	    .fd	    = rip_route_getfd(rip_ctx->route_mngr),
 	    .events = POLLIN,
 	};
-	pollfds[++i] = (struct pollfd){
+	pollfds[i++] = (struct pollfd){
 	    .fd	    = rip_ipc_getfd(rip_ctx->ipc_mngr),
 	    .events = POLLIN,
 	};
 
-	*actual_pollfds_count = i + 1;
+	*actual_pollfds_count = i;
 }
 
 int rip_if_entry_find_by_fd(const rip_context *rip_ctx, const int fd,
@@ -203,13 +203,14 @@ int rip_begin(rip_context *rip_ctx)
 			if (!(revents & POLLIN)) {
 				continue;
 			}
+			LOG_INFO("event on fd: %d", fd);
 
 			size_t rip_ifs_idx = 0;
 			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
-				LOG_INFO("Event on rip_route, calling update");
+				LOG_INFO("rip route update");
 				rip_route_update(rip_ctx->route_mngr);
 			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
-				LOG_INFO("Event on rip_ipc");
+				LOG_INFO("rip_ipc_handle_msg");
 				rip_ipc_handle_msg(rip_ctx->ipc_mngr);
 			} else if (!rip_if_entry_find_by_fd(rip_ctx, fd,
 							    &rip_ifs_idx)) {

@@ -58,6 +58,16 @@ def verify_connectivity(host: Host, address: str, retries: int = 4, sleep: float
 def wait_for_frr(r4: Host):
     r6_address = "10.0.5.6"
     verify_connectivity(r4, r6_address)
+
+def check_routing_table_updates(r3: Host):
+    x = r3_ut.execute_shell("route -n add -net 240.0.0.0 netmask 255.255.255.255 dev eth0")
+    
+    cli_route = r3_ut.execute_shell("rip-cli")
+    verify_substring_exist(
+        cli_route,
+        "240.0.0.0",
+        "Route found in: {}".format(cli_route),
+    )
             
 if __name__ == "__main__":
     munet_ns_dir = "/tmp/test_ns"
@@ -78,6 +88,10 @@ if __name__ == "__main__":
     verify_connectivity(r3_ut, "10.0.3.4")
 
     print(r3_ut.execute_shell("sh -c 'nohup rip >> rip.log 2>&1 &'"))
+
+    time.sleep(1)
+    check_routing_table_updates(r3_ut)
+
     
     while(1):
         time.sleep(100)

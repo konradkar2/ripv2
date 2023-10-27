@@ -17,6 +17,7 @@ void sig_handler(int sig_num)
 
 int main(int argc, char *argv[])
 {
+	int ret = 0;
 	(void)argc;
 	(void)argv;
 	signal(SIGINT, sig_handler);
@@ -34,8 +35,10 @@ int main(int argc, char *argv[])
 
 	if (resp.cmd_status == r_cmd_status_failed) {
 		LOG_ERR("Failed to execute cmd\n");
+		ret = 1;
 	}
 	printf("%s", resp.output);
 
-	return 0;
+	rip_ipc_free(rip_ipc);
+	return ret;
 }

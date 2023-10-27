@@ -5,9 +5,9 @@
 
 #define LOG_ERR(...)                                                           \
 	do {                                                                   \
-		fprintf(stderr, "ERROR: " __VA_ARGS__);                        \
-		fprintf(stderr, "\n");                                         \
-		fflush(stderr); \
+		fprintf(stdout, "ERROR: " __VA_ARGS__);                        \
+		fprintf(stdout, "\n");                                         \
+		fflush(stdout); \
 	} while (0)
 
 #define LOG_INFO(...)                                                          \

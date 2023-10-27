@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <mqueue.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -21,7 +22,7 @@ struct rip_ipc {
 };
 
 static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
-						enum rip_ipc_cmd cmd)
+					      enum rip_ipc_cmd cmd)
 {
 	for (size_t i = 0; i < ri->cmd_h_len; ++i) {
 		struct r_ipc_cmd_handler *hl = &ri->cmd_h[i];
@@ -44,27 +45,6 @@ void rip_ipc_free(struct rip_ipc *ri)
 	free(ri);
 }
 
-static mqd_t ipc_open(const char *mq_name, int flags, mode_t *rights,
-		      struct mq_attr *attr)
-{
-	mqd_t fd;
-
-	if (!rights || !attr) {
-		fd = mq_open(mq_name, flags);
-	} else if (rights && attr) {
-		fd = mq_open(mq_name, flags, *rights, attr);
-	} else {
-		BUG();
-	}
-
-	if (fd == -1) {
-		LOG_ERR("mq_open(%s) failed: %s", mq_name, strerror(errno));
-		return -1;
-	}
-
-	return fd;
-}
-
 int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
 		 size_t len)
 {
@@ -72,12 +52,14 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
 	struct mq_attr attr = {.mq_curmsgs = 0,
 			       .mq_flags   = 0,
 			       .mq_maxmsg  = 10,
-			       .mq_msgsize = sizeof(struct ipc_request)};
+			       .mq_msgsize = REQ_BUFFER_SIZE};
 	mode_t permission   = QUEUE_PERMISSIONS;
 
-	fd = ipc_open(RIP_DEAMON_QUEUE, O_RDONLY | O_CREAT | O_NONBLOCK,
-		      &permission, &attr);
+	fd = mq_open(RIP_DEAMON_QUEUE, O_RDONLY | O_CREAT | O_NONBLOCK,
+		     &permission, &attr);
 	if (fd == -1) {
+		LOG_ERR("mq_open(%s) failed: %s", RIP_DEAMON_QUEUE,
+			strerror(errno));
 		return 1;
 	}
 
@@ -105,8 +87,10 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	}
 
 	req   = (struct ipc_request *)ipc_req_buffer;
-	cli_q = ipc_open(RIP_CLI_QUEUE, O_WRONLY, NULL, NULL);
+	cli_q = mq_open(RIP_CLI_QUEUE, O_WRONLY);
 	if (cli_q == -1) {
+		LOG_ERR("mq_open(%s) failed: %s", RIP_CLI_QUEUE,
+			strerror(errno));
 		return;
 	}
 
@@ -150,8 +134,10 @@ void rip_ipc_init_cli(struct rip_ipc *ri)
 
 	mode_t permission = QUEUE_PERMISSIONS;
 
-	fd = ipc_open(RIP_CLI_QUEUE, O_RDONLY | O_CREAT, &permission, &attr);
+	fd = mq_open(RIP_CLI_QUEUE, O_RDONLY | O_CREAT, &permission, &attr);
 	if (fd == -1) {
+		fprintf(stderr, "mq_open(%s) failed: %s", RIP_DEAMON_QUEUE,
+			strerror(errno));
 		exit(1);
 	}
 
@@ -163,20 +149,22 @@ void rip_ipc_send_msg_cli(struct rip_ipc *ri, struct ipc_request request,
 {
 	mqd_t deamons_fd;
 
-	deamons_fd = ipc_open(RIP_DEAMON_QUEUE, O_WRONLY, NULL, NULL);
+	deamons_fd = mq_open(RIP_DEAMON_QUEUE, O_WRONLY);
 	if (deamons_fd < 0) {
-		LOG_ERR("RIP deamon not up");
+		fprintf(stderr, "RIP deamon not up");
 		exit(1);
 	}
 
 	if (mq_send(deamons_fd, (const char *)&request, sizeof(request), 0) <
 	    0) {
-		LOG_ERR("ms_send failed: %s", strerror(errno));
+		LOG_ERR("mq_send failed: %s", strerror(errno));
 		exit(1);
 	}
+	mq_close(deamons_fd);
+
 	struct timespec timeout = {
 	    .tv_nsec = 0,
-	    .tv_sec  = 3,
+	    .tv_sec  = 10,
 	};
 
 	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(*resp), NULL,
