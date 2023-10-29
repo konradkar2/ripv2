@@ -5,14 +5,13 @@
 #include <string.h>
 
 #define CALLOC(size) calloc(1, size)
-#define MEMSET_ZERO(dest)                                                      \
+#define MEMSET_ZERO(dest_p)                                                    \
 	do                                                                     \
-		memset(&dest, 0, sizeof(dest)); /*NOLINT */                    \
+		memset(dest_p, 0, sizeof(*dest_p)); /*NOLINT */                \
 	while (0)
 
 #define MIN(a, b) (a < b ? a : b)
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 #define BUG() assert(0 && "BUG")
-
 
 #endif

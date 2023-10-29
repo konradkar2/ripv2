@@ -12,7 +12,7 @@ void rip_route_free(struct rip_route *);
 int rip_route_getfd(struct rip_route *);
 void rip_route_handle_netlink_io(struct rip_route *);
 
-//routign table manipulation
+//routing table manipulation
 int rip_route_add_route(struct rip_route*);
 
 

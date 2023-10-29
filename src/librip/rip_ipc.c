@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #define RIP_DEAMON_QUEUE "/rip_queue"
 #define RIP_CLI_QUEUE "/rip_cli_queue"
@@ -34,10 +34,7 @@ static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
 	return NULL;
 }
 
-struct rip_ipc *rip_ipc_alloc(void)
-{
-	return CALLOC(sizeof(struct rip_ipc));
-}
+struct rip_ipc *rip_ipc_alloc(void) { return CALLOC(sizeof(struct rip_ipc)); }
 void rip_ipc_free(struct rip_ipc *ri)
 {
 	if (ri->fd > 0) {
@@ -63,7 +60,6 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
 			strerror(errno));
 		return 1;
 	}
-
 
 	ri->fd	      = fd;
 	ri->cmd_h     = handlers;
@@ -113,9 +109,10 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	if (status != 0) {
 		LOG_ERR("Failed to execute: %d", hl->cmd);
 		response->cmd_status = r_cmd_status_failed;
+	} else {
+		response->cmd_status = r_cmd_status_success;
 	}
 
-	response->cmd_status = r_cmd_status_success;
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
 		    0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));
@@ -164,13 +161,11 @@ void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,
 	}
 	mq_close(deamons_fd);
 
-
-	
 	struct timespec timeout;
 	clock_gettime(CLOCK_REALTIME, &timeout);
 	timeout.tv_sec += 3;
-	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response), NULL,
-			    &timeout) < 0) {
+	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response),
+			    NULL, &timeout) < 0) {
 		printf("(cli): mq_receive failed: %s", strerror(errno));
 		exit(1);
 	}

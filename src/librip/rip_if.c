@@ -47,7 +47,7 @@ int bind_port(int fd)
 		return 1;
 
 	struct sockaddr_in address;
-	MEMSET_ZERO(address);
+	MEMSET_ZERO(&address);
 
 	address.sin_family	= AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
@@ -66,7 +66,7 @@ int join_multicast(int fd, int if_index)
 		return 1;
 
 	struct ip_mreqn mreq;
-	MEMSET_ZERO(mreq);
+	MEMSET_ZERO(&mreq);
 
 	mreq.imr_multiaddr.s_addr = inet_addr(RIP_MULTICAST_ADDR);
 	mreq.imr_ifindex	  = if_index;

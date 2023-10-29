@@ -184,7 +184,7 @@ int rip_begin(rip_context *rip_ctx)
 	LOG_INFO("Waiting for events...");
 
 	struct pollfd pollfds[POLL_FDS_MAX_LEN];
-	MEMSET_ZERO(pollfds);
+	MEMSET_ZERO(&pollfds);
 
 	while (1) {
 		nfds_t actual_pollfds_count = 0;
