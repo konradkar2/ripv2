@@ -9,7 +9,7 @@ python3 ../test.py &
 test_pid=$!
 
 retries=0
-max_retries=15
+max_retries=30
 while [ ! -f $rip_log_file ]; do
     sleep 1
     retries=$((retries + 1))

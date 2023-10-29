@@ -17,9 +17,10 @@ def run_munet(ns_path):
     return munet
 
 
-def verify_substring_exist(string: str, substring: str, msg: str):
+def verify_substring_exist(string: str, substring: str, msg: str, verbose = False):
     if substring in string:
-        print(msg)
+        if(verbose):
+            print(msg)
     else:
         raise RuntimeError(
             "{0} - failed: '{1}' not found in '{2}'".format(msg, substring, string)
@@ -61,13 +62,15 @@ def wait_for_frr(r4: Host):
 
 def check_routing_table_updates(r3: Host):
     x = r3_ut.execute_shell("route -n add -net 240.0.0.0 netmask 255.255.255.255 dev eth0")
-    
+   
     cli_route = r3_ut.execute_shell("rip-cli")
     verify_substring_exist(
         cli_route,
         "240.0.0.0",
         "Route found in: {}".format(cli_route),
     )
+        
+
             
 if __name__ == "__main__":
     munet_ns_dir = "/tmp/test_ns"
