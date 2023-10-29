@@ -208,7 +208,7 @@ int rip_begin(rip_context *rip_ctx)
 			size_t rip_ifs_idx = 0;
 			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
 				LOG_INFO("rip route update");
-				rip_route_update(rip_ctx->route_mngr);
+				rip_route_handle_netlink_io(rip_ctx->route_mngr);
 			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
 				LOG_INFO("rip_ipc_handle_msg");
 				rip_ipc_handle_msg(rip_ctx->ipc_mngr);

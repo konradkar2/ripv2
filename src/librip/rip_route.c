@@ -1,11 +1,11 @@
 #include "rip_route.h"
 #include "logging.h"
-#include <netlink/cache.h>
-#include <netlink/errno.h>
-#include <netlink/netlink.h>
 #include "utils.h"
 #include <assert.h>
+#include <netlink/cache.h>
+#include <netlink/errno.h>
 #include <netlink/handlers.h>
+#include <netlink/netlink.h>
 #include <netlink/route/link.h>
 #include <netlink/route/route.h>
 #include <netlink/socket.h>
@@ -13,31 +13,21 @@
 
 struct rip_route {
 	struct nl_sock *sock;
-	struct nl_cache *link_cache;
 	struct nl_cache *route_cache;
 	struct nl_cache_mngr *mngr;
-};
-
-struct cache_and_filter {
-	struct nl_cache *cache;
-	struct nl_object *filter;
 };
 
 static void dump_caches(struct rip_route *rr,
 			struct nl_dump_params *dump_params)
 {
-	struct cache_and_filter dumps[] = {
-	    {.cache = rr->route_cache, .filter = OBJ_CAST(rtnl_route_alloc())},
-	    // {.cache = rr->link_cache, .filter = OBJ_CAST(rtnl_link_alloc())}
-	};
-
-	for (size_t i = 0; i < ARRAY_LEN(dumps); ++i) {
-		if (dumps[i].filter) {
-			nl_cache_dump_filter(dumps[i].cache, dump_params,
-					     dumps[i].filter);
-			nl_object_free(dumps[i].filter);
-		}
+	struct nl_object *route_filter = OBJ_CAST(rtnl_route_alloc());
+	if (!route_filter) {
+		LOG_ERR("rtnl_route_alloc");
+		return;
 	}
+
+	nl_cache_dump_filter(rr->route_cache, dump_params, route_filter);
+	nl_object_free(route_filter);
 }
 
 struct rip_route *rip_route_alloc_init(void)
@@ -45,7 +35,7 @@ struct rip_route *rip_route_alloc_init(void)
 	struct rip_route *rr;
 	int err;
 
-	rr = calloc(1, sizeof(struct rip_route));
+	rr = CALLOC(sizeof(struct rip_route));
 
 	if (!rr) {
 		LOG_ERR("%s: malloc", __func__);
@@ -64,22 +54,9 @@ struct rip_route *rip_route_alloc_init(void)
 		goto error;
 	}
 
-	if ((err = rtnl_link_alloc_cache(rr->sock, AF_UNSPEC,
-					 &rr->link_cache)) < 0) {
-		LOG_ERR("rtnl_link_alloc_cache_flags: %s\n", nl_geterror(err));
-		goto error;
-	}
-
 	if ((err = rtnl_route_alloc_cache(rr->sock, AF_UNSPEC, 0,
 					  &rr->route_cache)) < 0) {
 		LOG_ERR("rtnl_route_alloc_cache: %s\n", nl_geterror(err));
-		goto error;
-	}
-
-	if ((err = nl_cache_mngr_add_cache(rr->mngr, rr->link_cache, NULL,
-					   NULL)) < 0) {
-		LOG_ERR("nl_cache_mngr_add_cache link_cache: %s\n",
-			nl_geterror(err));
 		goto error;
 	}
 
@@ -103,7 +80,6 @@ void rip_route_free(struct rip_route *rr)
 	}
 
 	nl_cache_mngr_free(rr->mngr);
-	nl_cache_free(rr->link_cache);
 	nl_cache_free(rr->route_cache);
 	nl_socket_free(rr->sock);
 	free(rr);
@@ -114,13 +90,19 @@ int rip_route_getfd(struct rip_route *rr)
 	return nl_cache_mngr_get_fd(rr->mngr);
 }
 
-void rip_route_update(struct rip_route *rr)
+void rip_route_handle_netlink_io(struct rip_route *rr)
 {
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {
 		LOG_ERR("nl_cache_mngr_data_ready failed: %s",
 			nl_geterror(err));
 	}
+}
+
+int rip_route_add_route(struct rip_route *rr)
+{
+	(void)rr;
+	return 0;
 }
 
 void rip_route_print_table(struct rip_route *ri)

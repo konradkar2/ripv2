@@ -39,6 +39,8 @@ RUN apt-get install cmake -y
 WORKDIR /workdir/app
 COPY . /workdir/app
 
+RUN pip install pytest
+
 #run tests
 RUN cd ./src && mkdir build_debug && \
     cd build_debug && cmake .. -DBUILD_TESTING=ON && \

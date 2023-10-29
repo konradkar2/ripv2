@@ -36,7 +36,7 @@ static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
 
 struct rip_ipc *rip_ipc_alloc(void)
 {
-	return calloc(sizeof(struct rip_ipc), 1);
+	return CALLOC(sizeof(struct rip_ipc));
 }
 void rip_ipc_free(struct rip_ipc *ri)
 {
@@ -96,7 +96,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		return;
 	}
 
-	response = calloc(1, sizeof(struct ipc_response));
+	response = CALLOC(sizeof(struct ipc_response));
 	if (!response) {
 		LOG_ERR("calloc failed");
 		goto cleanup;
@@ -126,7 +126,7 @@ cleanup:
 	mq_close(cli_q);
 }
 
-void rip_ipc_init_cli(struct rip_ipc *ri)
+void cli_rip_ipc_init(struct rip_ipc *ri)
 {
 	mqd_t fd;
 	struct mq_attr attr = {.mq_curmsgs = 0,
@@ -146,7 +146,7 @@ void rip_ipc_init_cli(struct rip_ipc *ri)
 	ri->fd = fd;
 }
 
-void rip_ipc_send_msg_cli(struct rip_ipc *ri, struct ipc_request request,
+void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,
 			  struct ipc_response *resp)
 {
 	mqd_t deamons_fd;

@@ -40,8 +40,8 @@ int rip_ipc_init(struct rip_ipc *, struct r_ipc_cmd_handler handlers[],
 void rip_ipc_handle_msg(struct rip_ipc *);
 
 // CLI functions
-void rip_ipc_init_cli(struct rip_ipc *);
-void rip_ipc_send_msg_cli(struct rip_ipc *, struct ipc_request request,
+void cli_rip_ipc_init(struct rip_ipc *);
+void cli_rip_ipc_send_msg(struct rip_ipc *, struct ipc_request request,
 			  struct ipc_response *resp);
 
 #endif

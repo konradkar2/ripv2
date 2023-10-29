@@ -26,12 +26,12 @@ int main(int argc, char *argv[])
 	if (!rip_ipc) {
 		return 1;
 	}
-	rip_ipc_init_cli(rip_ipc);
+	cli_rip_ipc_init(rip_ipc);
 
 	struct ipc_request req	 = {.cmd = dump_routing_table};
 	struct ipc_response resp = {0};
 
-	rip_ipc_send_msg_cli(rip_ipc, req, &resp);
+	cli_rip_ipc_send_msg(rip_ipc, req, &resp);
 
 	if (resp.cmd_status == r_cmd_status_failed) {
 		LOG_ERR("Failed to execute cmd\n");

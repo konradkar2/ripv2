@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import time
 import pexpect
+import pytest
+from os import system
 
 
 def wait_for_prompt(munet: pexpect.spawn, timeout=5):
@@ -10,21 +12,11 @@ def wait_for_prompt(munet: pexpect.spawn, timeout=5):
 
 def run_munet(ns_path):
     munet = pexpect.spawn("munet -d {0}".format(ns_path))
-    wait_for_prompt(munet)
+    wait_for_prompt(munet, 15)
 
     output = munet.before.decode()
     print(output)
     return munet
-
-
-def verify_substring_exist(string: str, substring: str, msg: str, verbose = False):
-    if substring in string:
-        if(verbose):
-            print(msg)
-    else:
-        raise RuntimeError(
-            "{0} - failed: '{1}' not found in '{2}'".format(msg, substring, string)
-        )
 
 
 class Host:
@@ -38,63 +30,74 @@ class Host:
         return self.munet.before.decode()
 
 
-def verify_connectivity(host: Host, address: str, retries: int = 4, sleep: float = 1):
-
+def has_connectivity(host: Host, address: str, retries: int = 4, sleep: float = 1):
     for i in range(retries):
-        try:
-            ping_stdout = host.execute_shell("ping {0} -c 5".format(address))
-            verify_substring_exist(
-                ping_stdout,
-                "64 bytes from {0}".format(address),
-                "Connectivity between host {0} and {1}".format(host.name, address),
-            )
-            return
-        except Exception as e:
-            print("#{0} No connectivity between host {1} and {2}...".format(i,host.name, address))
-            time.sleep(1)
+        ping_stdout = host.execute_shell("ping {0} -c 5".format(address))
+        if "64 bytes from {0}".format(address) in ping_stdout:
+            return True
+        time.sleep(1)
 
-    raise RuntimeError("No connectivity between host {0} and {1}".format(host.name, address))
+    print("No connectivity between host {0} and {1}".format(host.name, address))
+    return False
 
 
 def wait_for_frr(r4: Host):
     r6_address = "10.0.5.6"
-    verify_connectivity(r4, r6_address)
+    if not has_connectivity(r4, r6_address):
+        raise Exception("FRR did not converge")
 
-def check_routing_table_updates(r3: Host):
-    x = r3_ut.execute_shell("route -n add -net 240.0.0.0 netmask 255.255.255.255 dev eth0")
-   
-    cli_route = r3_ut.execute_shell("rip-cli")
-    verify_substring_exist(
-        cli_route,
-        "240.0.0.0",
-        "Route found in: {}".format(cli_route),
+
+class munet_environment:
+    def __init__(self):
+        munet_ns_dir = "/tmp/test_ns"
+        system("rm -rf {0}".format(munet_ns_dir))
+
+        self.munet = run_munet(munet_ns_dir)
+
+        self.r3 = Host("r3", self.munet)
+        self.r3.execute_shell("touch rip.log")
+        system("tail -f {0}/r3/rip.log &".format(munet_ns_dir))
+
+        r4 = Host("r4", self.munet)
+        wait_for_frr(r4)
+
+        self.r3.execute_shell("ip address add 10.0.2.3/24 dev eth0")
+        self.r3.execute_shell("ip address add 10.0.3.3/24 dev eth1")
+        self.r3.execute_shell(
+            "route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0"
+        )
+        self.r3.execute_shell(
+            "route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1"
+        )
+
+        time.sleep(1)
+        if not has_connectivity(self.r3, "10.0.3.4"):
+            raise Exception("somehow r3 can't reach r4")
+
+        print(self.r3.execute_shell("sh -c 'nohup rip >> rip.log 2>&1 &'"))
+        time.sleep(1)
+
+    def __del__(self):
+        print("teardown, cleaning rip & munet")
+        self.r3.execute_shell("pkill rip")
+        self.munet.sendline("quit")
+        time.sleep(2)
+        system("pkill munet")        
+
+
+@pytest.fixture(scope="module")
+def munet_env():
+    return munet_environment()
+
+
+def test_simple(munet_env):
+    assert 1 == 1
+
+
+def test_routing_table_updates(munet_env):
+    munet_env.r3.execute_shell(
+        "route -n add -net 240.0.0.0 netmask 255.255.255.255 dev eth0"
     )
-        
 
-            
-if __name__ == "__main__":
-    munet_ns_dir = "/tmp/test_ns"
-    munet = run_munet(munet_ns_dir)
-
-    r3_ut = Host("r3", munet)
-    r3_ut.execute_shell("touch rip.log")
-
-    r4 = Host("r4", munet)
-    wait_for_frr(r4)
-
-    r3_ut.execute_shell("ip address add 10.0.2.3/24 dev eth0")
-    r3_ut.execute_shell("ip address add 10.0.3.3/24 dev eth1")
-    r3_ut.execute_shell("route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0")
-    r3_ut.execute_shell("route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1")
-    
-    time.sleep(1)
-    verify_connectivity(r3_ut, "10.0.3.4")
-
-    print(r3_ut.execute_shell("sh -c 'nohup rip >> rip.log 2>&1 &'"))
-
-    time.sleep(1)
-    check_routing_table_updates(r3_ut)
-
-    
-    while(1):
-        time.sleep(100)
+    cli_route = munet_env.r3.execute_shell("rip-cli")
+    assert "240.0.0.0" in cli_route
