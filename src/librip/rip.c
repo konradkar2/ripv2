@@ -98,7 +98,7 @@ int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 		return 1;
 	}
 
-	rip_header_print(&msg_buffer.header);
+	//rip_header_print(&msg_buffer.header);
 	nbytes -= sizeof(msg_buffer.header);
 
 	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
@@ -162,6 +162,11 @@ int rip_begin(rip_context *rip_ctx)
 	}
 
 	rip_route_print_table(rip_ctx->route_mngr);
+
+	struct in_addr dest;
+	struct in_addr next_hop;
+	int 
+	rip_route_add_route(rip_ctx->route_mngr);
 
 	rip_ctx->ipc_mngr = rip_ipc_alloc();
 	if (!rip_ctx->ipc_mngr) {

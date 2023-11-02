@@ -7,14 +7,14 @@
 	do {                                                                   \
 		fprintf(stdout, "ERROR: " __VA_ARGS__);                        \
 		fprintf(stdout, "\n");                                         \
-		fflush(stdout); \
+		fflush(stdout);                                                \
 	} while (0)
 
 #define LOG_INFO(...)                                                          \
 	do {                                                                   \
-		fprintf(stdout, "INFO: " __VA_ARGS__);                          \
-		fprintf(stdout, "\n");                                          \
-		fflush(stdout); \
+		fprintf(stdout, "INFO: " __VA_ARGS__);                         \
+		fprintf(stdout, "\n");                                         \
+		fflush(stdout);                                                \
 	} while (0)
 
 #endif

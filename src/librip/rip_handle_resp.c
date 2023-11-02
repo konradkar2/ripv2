@@ -71,9 +71,9 @@ int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entr
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
 
-		printf("[%zu]\n", i);
+		//printf("[%zu]\n", i);
 		rip2_entry_ntoh(entry);
-		rip2_entry_print(entry);
+		//rip2_entry_print(entry);
 
 		if (!is_unicast_address(entry->ip_address) ||
 		    !is_net_mask_valid(entry->subnet_mask) ||

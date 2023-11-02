@@ -35,11 +35,10 @@ RUN sudo apt-get update && sudo apt-get install frr frr-pythontools -yq
 RUN pip install munet
 
 RUN apt-get install cmake -y
+RUN pip install pytest
 
 WORKDIR /workdir/app
 COPY . /workdir/app
-
-RUN pip install pytest
 
 #run tests
 RUN cd ./src && mkdir build_debug && \

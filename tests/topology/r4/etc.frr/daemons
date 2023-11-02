@@ -1,7 +1,5 @@
 ripd=1
 zebra=1
-vtysh_enable=1
-watchfrr_enable=1
 zebra_options="-d -F traditional --log=file:/var/log/frr/zebra.log"
 ripd_options="-d -F traditional --log=file:/var/log/frr/ripd.log"
 staticd_options="-d -F traditional --log=file:/var/log/frr/staticd.log"

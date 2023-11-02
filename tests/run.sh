@@ -4,4 +4,4 @@ set -e
 
 
 cd ./tests/topology
-pytest -v -s  ../test.py
+PYTHONUNBUFFERED=1 pytest -v -s ../test.py

@@ -51,35 +51,22 @@ class munet_environment:
     def __init__(self):
         munet_ns_dir = "/tmp/test_ns"
         system("rm -rf {0}".format(munet_ns_dir))
-
         self.munet = run_munet(munet_ns_dir)
-
+        system("tail -F {0}/r3/var.log.rip/rip.log &".format(munet_ns_dir))
+    
         self.r3 = Host("r3", self.munet)
-        self.r3.execute_shell("touch rip.log")
-        system("tail -f {0}/r3/rip.log &".format(munet_ns_dir))
 
         r4 = Host("r4", self.munet)
         wait_for_frr(r4)
-
-        self.r3.execute_shell("ip address add 10.0.2.3/24 dev eth0")
-        self.r3.execute_shell("ip address add 10.0.3.3/24 dev eth1")
-        self.r3.execute_shell(
-            "route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0"
-        )
-        self.r3.execute_shell(
-            "route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1"
-        )
-
         time.sleep(1)
+
         if not has_connectivity(self.r3, "10.0.3.4"):
             raise Exception("somehow r3 can't reach r4")
 
-        print(self.r3.execute_shell("sh -c 'nohup rip >> rip.log 2>&1 &'"))
         time.sleep(1)
 
     def __del__(self):
-        print("teardown, cleaning rip & munet")
-        self.r3.execute_shell("pkill rip")
+        print("teardown, cleaning munet")
         self.munet.sendline("quit")
         time.sleep(2)
         system("pkill munet")        

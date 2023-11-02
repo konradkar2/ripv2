@@ -16,6 +16,24 @@ kinds:
       - SYS_ADMIN
       - AUDIT_WRITE
     merge: ["volumes"]
+  - name: ripv2
+    cmd: |
+      echo "test!"
+      ip address add 10.0.2.3/24 dev eth0
+      ip address add 10.0.3.3/24 dev eth1
+      route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0
+      route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1
+      touch /var/log/rip/rip.log
+      rip >> /var/log/rip/rip.log 2>&1 &
+      tail -F /var/log/rip/rip.log
+    cleanup-cmd: |
+      pkill rip
+    volumes:
+      - "%RUNDIR%/var.log.rip:/var/log/rip"
+    cap-add:
+      - SYS_ADMIN
+      - AUDIT_WRITE
+    merge: ["volumes"]
 topology:
   networks:
     - name: net1
@@ -36,10 +54,8 @@ topology:
       kind: frr
       connections: ["net1", "net2"]
     - name: r3
+      kind: ripv2
       connections: ["net2", "net3"]
-      cap-add:
-      - SYS_ADMIN
-      - AUDIT_WRITE
     - name: r4
       kind: frr
       connections: ["net3", "net4" ]
