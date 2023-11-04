@@ -13,7 +13,7 @@
 
 void sig_handler(int sig_num)
 {
-	LOG_ERR("%s: Got sig %d, exiting...", __func__, sig_num);
+	LOG_ERR("%s: Got sig %s, exiting...", __func__, strsignal(sig_num));
 	exit(128 + sig_num);
 }
 
@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 	signal(SIGINT, sig_handler);
+	signal(SIGSEGV, sig_handler);
 
 	rip_context rip_ctx = {
 	    .rip_ifs_count = 2,

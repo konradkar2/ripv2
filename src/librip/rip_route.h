@@ -13,16 +13,14 @@ void rip_route_free(struct rip_route *);
 int rip_route_getfd(struct rip_route *);
 void rip_route_handle_netlink_io(struct rip_route *);
 
-struct rip_route_entry;
-struct rip_route_entry *rip_route_entry_create(struct in_addr dest,
-						   int dest_prefix,
-						   int next_hop_if_index,
-						   struct in_addr next_hop);
-void rip_route_entry_free(struct rip_route_entry *);
+typedef void rip_route_entry;
+rip_route_entry *rip_route_entry_create(struct in_addr dest, int dest_prefix,
+					int next_hop_if_index,
+					struct in_addr next_hop);
+void rip_route_entry_free(rip_route_entry*);
 
 // routing table manipulation
-int rip_route_add_route(struct rip_route *,
-			const struct rip_route_entry *entry);
+int rip_route_add_route(struct rip_route *, rip_route_entry *entry);
 
 /// helpers
 void rip_route_print_table(struct rip_route *);

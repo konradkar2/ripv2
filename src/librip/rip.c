@@ -98,7 +98,7 @@ int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 		return 1;
 	}
 
-	//rip_header_print(&msg_buffer.header);
+	// rip_header_print(&msg_buffer.header);
 	nbytes -= sizeof(msg_buffer.header);
 
 	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
@@ -161,12 +161,24 @@ int rip_begin(rip_context *rip_ctx)
 		return 1;
 	}
 
-	rip_route_print_table(rip_ctx->route_mngr);
+	//rip_route_print_table(rip_ctx->route_mngr);
 
 	struct in_addr dest;
 	struct in_addr next_hop;
-	int 
-	rip_route_add_route(rip_ctx->route_mngr);
+	inet_pton(AF_INET, "10.120.3.0", &dest);
+	inet_pton(AF_INET, rip_ctx->rip_ifs[0].if_addr, &next_hop);
+
+	rip_route_entry *entry = rip_route_entry_create(
+	    dest, 24, rip_ctx->rip_ifs[0].if_index, next_hop);
+	if (!entry) {
+		LOG_ERR("rip_route_entry_create");
+	}
+
+	if(rip_route_add_route(rip_ctx->route_mngr, entry) > 0) {
+		LOG_ERR("rip_route_add_route");
+		return 1;
+	}
+	
 
 	rip_ctx->ipc_mngr = rip_ipc_alloc();
 	if (!rip_ctx->ipc_mngr) {
@@ -213,7 +225,8 @@ int rip_begin(rip_context *rip_ctx)
 			size_t rip_ifs_idx = 0;
 			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
 				LOG_INFO("rip route update");
-				rip_route_handle_netlink_io(rip_ctx->route_mngr);
+				rip_route_handle_netlink_io(
+				    rip_ctx->route_mngr);
 			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
 				LOG_INFO("rip_ipc_handle_msg");
 				rip_ipc_handle_msg(rip_ctx->ipc_mngr);

@@ -10,6 +10,13 @@
 		fflush(stdout);                                                \
 	} while (0)
 
+#define LOG_TRACE()                                                           \
+	do {                                                                   \
+		fprintf(stdout, "%s:%d", __func__, __LINE__);                        \
+		fprintf(stdout, "\n");                                         \
+		fflush(stdout);                                                \
+	} while (0)
+
 #define LOG_INFO(...)                                                          \
 	do {                                                                   \
 		fprintf(stdout, "INFO: " __VA_ARGS__);                         \
