@@ -10,10 +10,10 @@ void rip2_entry_ntoh(struct rip2_entry *r2e)
 {
 	r2e->routing_family_id = ntohs(r2e->routing_family_id);
 	r2e->route_tag	       = ntohs(r2e->routing_family_id);
-	r2e->ip_address	       = ntohl(r2e->ip_address);
-	r2e->subnet_mask       = ntohl(r2e->subnet_mask);
-	r2e->next_hop	       = ntohl(r2e->next_hop);
-	r2e->metric	       = ntohl(r2e->metric);
+	// r2e->ip_address	       = ntohl(r2e->ip_address);
+	// r2e->subnet_mask       = ntohl(r2e->subnet_mask);
+	// r2e->next_hop	       = ntohl(r2e->next_hop);
+	r2e->metric = ntohl(r2e->metric);
 }
 
 void rip_header_print(const struct rip_header *r_h)

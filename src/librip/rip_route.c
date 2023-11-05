@@ -2,7 +2,7 @@
 #include "logging.h"
 #include "netlink/object.h"
 #include "rip_common.h"
-#include "rip_database.h"
+#include "rip_messages.h"
 #include "utils.h"
 #include <arpa/inet.h>
 #include <assert.h>
@@ -27,7 +27,6 @@ struct rip_route_mngr {
 	struct nl_cache *route_cache;
 	struct nl_cache *link_cache;
 	struct nl_cache_mngr *mngr;
-	struct rip_db rip_db;
 };
 
 static void dump_caches(struct rip_route_mngr *rr,
@@ -197,6 +196,13 @@ alloc_failed:
 	return 1;
 }
 
+static int get_prefix_len(struct in_addr subnet_mask)
+{
+	uint32_t host_mask     = ntohl(subnet_mask.s_addr);
+	uint32_t inverted_mask = ~host_mask;
+	return __builtin_clz(inverted_mask);
+}
+
 struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
 {
 	struct rtnl_route *route	= NULL;
@@ -210,18 +216,20 @@ struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
 		return NULL;
 	}
 
-	if (rip_fill_nl_addr(rd->dest_addr, rd->dest_prefix_len, dest_nl) > 0) {
+	const struct rip2_entry *entry = &rd->entry;
+	if (rip_fill_nl_addr(entry->ip_address,
+			     get_prefix_len(entry->subnet_mask), dest_nl) > 0) {
 		LOG_ERR("rip_fill_nl_addr");
 		goto fill_error;
 	}
 
-	if (rip_fill_nl_addr(rd->nexthop_addr, 32, nexthop_nl_addr) > 0) {
+	if (rip_fill_nl_addr(entry->next_hop, 32, nexthop_nl_addr) > 0) {
 		LOG_ERR("rip_fill_nl_addr");
 		goto fill_error;
 	}
 
 	rip_fill_next_hop(nexthop_nl, nexthop_nl_addr, rd->next_hop_if_index);
-	if (rip_fill_route(route, dest_nl, nexthop_nl, rd->metric) > 0) {
+	if (rip_fill_route(route, dest_nl, nexthop_nl, entry->metric) > 0) {
 		LOG_ERR("rip_fill_route");
 		goto fill_error;
 	}
@@ -291,7 +299,7 @@ int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data)
 {
 	assert(data);
 
-	struct rip_route_mngr *mngr		  = data;
+	struct rip_route_mngr *mngr	  = data;
 	struct nl_dump_params dump_params = {
 	    .dp_buf    = resp_buffer,
 	    .dp_buflen = buffer_size,

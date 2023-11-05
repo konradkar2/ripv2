@@ -14,11 +14,13 @@ add_library(librip
         rip_handle_resp.c
         rip_route.c
         rip_ipc.c
+        rip_db.c
 )
 
 target_link_libraries(librip PRIVATE
         ${LIBNL3_LIBRARIES}
         ${LIBRT}
+        rip::utils
 )
 
 target_include_directories(librip PRIVATE

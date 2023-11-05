@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "rip_route.h"
 #include "rip_ipc.h"
+#include "rip_db.h"
 
 #define MAX_RIP_IFS 16
 
@@ -21,6 +22,7 @@ typedef struct {
 	rip_timer t_garbage_collection;
 	struct rip_route_mngr *route_mngr;
 	struct rip_ipc * ipc_mngr;
+	struct rip_db *rip_db;
 } rip_context;
 
 int rip_begin(rip_context *rip_ctx);

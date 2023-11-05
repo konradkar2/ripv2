@@ -17,8 +17,8 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(librip)
 add_subdirectory(utils)
+add_subdirectory(librip)
 
 add_executable(rip
     ripd.c

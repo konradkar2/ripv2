@@ -6,8 +6,12 @@ add_library(${PROJECT_NAME}
         STATIC
         vector.c
 )
+add_library(rip::${PROJECT_NAME} ALIAS utils)
+
+message(WARNING ${CMAKE_CURRENT_LIST_DIR})
+message(WARNING ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        ${CMAKE_CURRENT_LIST_DIR}/..
 )
 

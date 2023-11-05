@@ -1,15 +1,13 @@
 #ifndef RIP_COMMON_H
 #define RIP_COMMON_H
 
+#include "rip_messages.h"
 #include <netinet/in.h>
 #include <stdint.h>
 
 struct rip_route_description {
-	struct in_addr dest_addr;
+	struct rip2_entry entry;
 	int next_hop_if_index;
-	struct in_addr nexthop_addr;
-	uint8_t dest_prefix_len;
-	uint8_t metric;
 };
 
 #endif

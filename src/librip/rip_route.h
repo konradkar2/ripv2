@@ -14,22 +14,11 @@ void rip_route_free(struct rip_route_mngr *);
 int rip_route_getfd(struct rip_route_mngr *);
 void rip_route_handle_netlink_io(struct rip_route_mngr *);
 
-
-
-struct route_entry_input {
-	struct in_addr dest;
-	int dest_prefix;
-	int next_hop_if_index;
-	struct in_addr next_hop;
-};
-
 typedef void rip_route_entry;
-
 rip_route_entry *rip_route_entry_create(const struct rip_route_description * route_entry_input);
 void rip_route_entry_free(rip_route_entry *);
 
 // routing table manipulation
-
 int rip_route_add_route(struct rip_route_mngr *, rip_route_entry *entry);
 
 /// helpers

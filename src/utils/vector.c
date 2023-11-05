@@ -1,6 +1,8 @@
 #include "vector.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 struct vector {
 	void *data;
@@ -45,8 +47,8 @@ void vector_free(struct vector *vec)
 	free(vec);
 }
 
-size_t vec_get_len(const struct vector *vec) { return vec->length; }
-inline void *vector_get_el(struct vector *vec, size_t index)
+size_t vector_get_len(const struct vector *vec) { return vec->length; }
+inline void *vector_get(struct vector *vec, size_t index)
 {
 	if (index < vec->length) {
 		return (char *)vec->data + index * vec->el_size;
@@ -74,7 +76,7 @@ inline static int vector_realloc(struct vector *vec, size_t new_capacity)
 	return 0;
 }
 
-int vector_add_el(struct vector *vec, void *element, size_t el_size)
+int vector_add(struct vector *vec, void *element, size_t el_size)
 {
 	assert(vec->el_size == el_size);
 
@@ -93,7 +95,20 @@ int vector_add_el(struct vector *vec, void *element, size_t el_size)
 	return 0;
 }
 
-int vector_del_el(struct vector *vec, size_t idx)
+ssize_t vector_find(struct vector *vec, void *filter_entry,
+		    bool(filter_func)(void *entry, void *filter_entry))
+{
+	for (size_t i = 0; i < vector_get_len(vec); ++i) {
+		void *entry = vector_get(vec, i);
+
+		if (filter_func(entry, filter_entry)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int vector_del(struct vector *vec, size_t idx)
 {
 	if (idx >= vec->length) {
 		return 1;
