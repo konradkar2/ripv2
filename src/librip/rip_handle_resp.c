@@ -60,10 +60,6 @@ int handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		    struct rip2_entry entries[], size_t n_entry,
 		    struct in_addr sender_addr, int origin_if_index)
 {
-	(void)route_mngr;
-	(void)sender_addr;
-	(void)origin_if_index;
-
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
 

@@ -1,5 +1,6 @@
 #include "rip.h"
 #include "logging.h"
+#include "rip_db.h"
 #include "rip_ipc.h"
 #include "rip_messages.h"
 
@@ -104,7 +105,7 @@ int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 
 	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
 		const size_t n_entry = nbytes / sizeof(struct rip2_entry);
-		if (handle_response(rip_ctx->route_mngr, rip_ctx->rip_db,
+		if (handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
 				    msg_buffer.entries, n_entry,
 				    sender_addr.sin_addr, rip_if_e->if_index)) {
 			LOG_ERR("Failed to handle response");
@@ -167,6 +168,11 @@ int rip_begin(rip_context *rip_ctx)
 	if (!rip_ctx->ipc_mngr) {
 		return 1;
 	}
+
+	if (rip_db_init(&rip_ctx->rip_db) > 0) {
+		return 1;
+	}
+
 	struct r_ipc_cmd_handler handlers[] = {
 	    [0] = {.cmd	 = dump_routing_table,
 		   .data = rip_ctx->route_mngr,

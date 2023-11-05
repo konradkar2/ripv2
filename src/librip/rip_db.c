@@ -2,8 +2,9 @@
 #include "logging.h"
 #include "rip_common.h"
 #include "rip_messages.h"
-#include <utils/vector.h>
+#include "utils.h"
 #include <string.h>
+#include <utils/vector.h>
 
 int rip_db_init(struct rip_db *db)
 {
@@ -56,7 +57,6 @@ static bool rip_route_description_cmp(void *el_a, void *el_b)
 
 bool rip_db_contains(struct rip_db *db, struct rip_route_description *entry)
 {
-
 	ssize_t idx =
 	    vector_find(db->added_routes, entry, rip_route_description_cmp);
 	if (idx == -1) {

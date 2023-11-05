@@ -30,6 +30,7 @@ add_executable(rip-cli
 
 target_link_libraries(rip
     librip
+    utils
 )
 
 target_link_libraries(rip-cli

@@ -20,7 +20,7 @@ add_library(librip
 target_link_libraries(librip PRIVATE
         ${LIBNL3_LIBRARIES}
         ${LIBRT}
-        rip::utils
+        utils
 )
 
 target_include_directories(librip PRIVATE
