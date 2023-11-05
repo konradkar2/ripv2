@@ -78,18 +78,19 @@ int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 	const rip_if_entry *rip_if_e = &rip_ctx->rip_ifs[rip_if_entry_idx];
 
 	struct msg_buffer msg_buffer;
-	struct sockaddr_in addr_n;
-	socklen_t addrlen = sizeof(addr_n);
-	ssize_t nbytes = recvfrom(rip_if_e->fd, &msg_buffer, sizeof(msg_buffer),
-				  0, (struct sockaddr *)&addr_n, &addrlen);
+	struct sockaddr_in sender_addr;
+	socklen_t sender_addr_len = sizeof(sender_addr);
+	ssize_t nbytes =
+	    recvfrom(rip_if_e->fd, &msg_buffer, sizeof(msg_buffer), 0,
+		     (struct sockaddr *)&sender_addr, &sender_addr_len);
 	if (nbytes < 0) {
 		LOG_ERR("recvfrom failed: %s", strerror(errno));
 		return 1;
 	}
 
 	char addr_h[INET_ADDRSTRLEN];
-	if (NULL !=
-	    inet_ntop(AF_INET, &addr_n.sin_addr, addr_h, INET_ADDRSTRLEN)) {
+	if (NULL != inet_ntop(AF_INET, &sender_addr.sin_addr, addr_h,
+			      INET_ADDRSTRLEN)) {
 		LOG_INFO("Got message from %s on %s interface", addr_h,
 			 rip_if_e->if_name);
 	} else {
@@ -103,8 +104,9 @@ int rip_handle_io(rip_context *rip_ctx, const size_t rip_if_entry_idx)
 
 	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
 		const size_t n_entry = nbytes / sizeof(struct rip2_entry);
-		if (handle_response(rip_ctx, msg_buffer.entries, n_entry,
-				    addr_n.sin_addr)) {
+		if (handle_response(rip_ctx->route_mngr, msg_buffer.entries,
+				    n_entry, sender_addr.sin_addr,
+				    rip_if_e->if_index)) {
 			LOG_ERR("Failed to handle response");
 			return 1;
 		}
@@ -160,25 +162,6 @@ int rip_begin(rip_context *rip_ctx)
 	if (!rip_ctx->route_mngr) {
 		return 1;
 	}
-
-	//rip_route_print_table(rip_ctx->route_mngr);
-
-	struct in_addr dest;
-	struct in_addr next_hop;
-	inet_pton(AF_INET, "10.120.3.0", &dest);
-	inet_pton(AF_INET, rip_ctx->rip_ifs[0].if_addr, &next_hop);
-
-	rip_route_entry *entry = rip_route_entry_create(
-	    dest, 24, rip_ctx->rip_ifs[0].if_index, next_hop);
-	if (!entry) {
-		LOG_ERR("rip_route_entry_create");
-	}
-
-	if(rip_route_add_route(rip_ctx->route_mngr, entry) > 0) {
-		LOG_ERR("rip_route_add_route");
-		return 1;
-	}
-	
 
 	rip_ctx->ipc_mngr = rip_ipc_alloc();
 	if (!rip_ctx->ipc_mngr) {

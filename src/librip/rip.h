@@ -19,7 +19,7 @@ typedef struct {
 	rip_timer t_update;
 	rip_timer t_timeout;
 	rip_timer t_garbage_collection;
-	struct rip_route *route_mngr;
+	struct rip_route_mngr *route_mngr;
 	struct rip_ipc * ipc_mngr;
 } rip_context;
 

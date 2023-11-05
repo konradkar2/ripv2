@@ -1,6 +1,8 @@
 #include "rip_route.h"
 #include "logging.h"
 #include "netlink/object.h"
+#include "rip_common.h"
+#include "rip_database.h"
 #include "utils.h"
 #include <arpa/inet.h>
 #include <assert.h>
@@ -17,79 +19,65 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-struct rip_route {
-	struct nl_sock *sock;
+struct rip_route_mngr {
+	// Socket for manipulating routing table
+	// Not reusing mngr sock as it adviced
+	// by the libnl to only handle kernel notifications
+	struct nl_sock *requests_sock;
 	struct nl_cache *route_cache;
-	struct nl_cache * link_cache;
+	struct nl_cache *link_cache;
 	struct nl_cache_mngr *mngr;
+	struct rip_db rip_db;
 };
 
-static void dump_caches(struct rip_route *rr,
+static void dump_caches(struct rip_route_mngr *rr,
 			struct nl_dump_params *dump_params)
 {
-	struct rtnl_route *route_filter = rtnl_route_alloc();
-	if (!route_filter) {
-		LOG_ERR("rtnl_route_alloc");
-		return;
-	}
-
-	nl_cache_dump_filter(rr->route_cache, dump_params, OBJ_CAST(route_filter));
-	rtnl_route_put(route_filter);
+	nl_cache_dump_filter(rr->route_cache, dump_params, NULL);
 }
 
-struct rip_route *rip_route_alloc_init(void)
+struct rip_route_mngr *rip_route_alloc_init(void)
 {
-	struct rip_route *rr;
-	int err;
+	struct rip_route_mngr *rr;
+	int ec;
 
-	rr = CALLOC(sizeof(struct rip_route));
+	rr = CALLOC(sizeof(struct rip_route_mngr));
 
 	if (!rr) {
 		LOG_ERR("%s: malloc", __func__);
 		goto error;
 	}
 
-	rr->sock = nl_socket_alloc();
-	if (!rr->sock) {
+	rr->requests_sock = nl_socket_alloc();
+	if (!rr->requests_sock) {
 		LOG_ERR("nl_socket_alloc");
 		goto error;
 	}
-
-	err = nl_cache_mngr_alloc(rr->sock, NETLINK_ROUTE, 0, &rr->mngr);
-	if (err < 0) {
-		LOG_ERR("nl_cache_mngr_alloc: %s\n", nl_geterror(err));
+	if ((ec = nl_connect(rr->requests_sock, NETLINK_ROUTE)) < 0) {
+		LOG_ERR("nl_connect: %s\n", nl_geterror(ec));
 		goto error;
 	}
 
-	if ((err = rtnl_route_alloc_cache(rr->sock, AF_INET, 0,
-					  &rr->route_cache)) < 0) {
-		LOG_ERR("rtnl_route_alloc_cache: %s\n", nl_geterror(err));
+	ec = nl_cache_mngr_alloc(NULL, NETLINK_ROUTE, NL_AUTO_PROVIDE,
+				 &rr->mngr);
+	if (ec < 0) {
+		LOG_ERR("nl_cache_mngr_alloc: %s\n", nl_geterror(ec));
 		goto error;
 	}
 
-	if((err = rtnl_link_alloc_cache(rr->sock, AF_INET, &rr->link_cache))){
-		LOG_ERR("rtnl_link_alloc_cache: %s\n", nl_geterror(err));
+	if ((ec = nl_cache_mngr_add(rr->mngr, "route/link", NULL, NULL,
+				    &rr->link_cache)) < 0) {
+		LOG_ERR("nl_cache_mngr_add_cache route/link: %s\n",
+			nl_geterror(ec));
 		goto error;
 	}
 
-	if ((err = nl_cache_mngr_add_cache(rr->mngr, rr->route_cache, NULL,
-					   NULL)) < 0) {
+	if ((ec = nl_cache_mngr_add(rr->mngr, "route/route", NULL, NULL,
+				    &rr->route_cache)) < 0) {
 		LOG_ERR("nl_cache_mngr_add_cache route_cache: %s\n",
-			nl_geterror(err));
+			nl_geterror(ec));
 		goto error;
 	}
-
-	if ((err = nl_cache_mngr_add_cache(rr->mngr, rr->link_cache, NULL,
-					   NULL)) < 0) {
-		LOG_ERR("nl_cache_mngr_add_cache route_cache: %s\n",
-			nl_geterror(err));
-		goto error;
-	}
-
-	//needed for more detailed dumps
-	//TODO: remove or enabled under flag
-	nl_cache_mngt_provide(rr->route_cache);
-	nl_cache_mngt_provide(rr->link_cache);
 
 	return rr;
 error:
@@ -97,31 +85,32 @@ error:
 	return NULL;
 }
 
-void rip_route_free(struct rip_route *rr)
+void rip_route_free(struct rip_route_mngr *rr)
 {
 	if (!rr) {
 		return;
 	}
-
 	nl_cache_mngr_free(rr->mngr);
 	nl_cache_free(rr->route_cache);
 	nl_cache_free(rr->link_cache);
-	nl_socket_free(rr->sock);
+	nl_socket_free(rr->requests_sock);
 	free(rr);
 }
 
-int rip_route_getfd(struct rip_route *rr)
+int rip_route_getfd(struct rip_route_mngr *rr)
 {
 	return nl_cache_mngr_get_fd(rr->mngr);
 }
 
-void rip_route_handle_netlink_io(struct rip_route *rr)
+void rip_route_handle_netlink_io(struct rip_route_mngr *rr)
 {
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {
 		LOG_ERR("nl_cache_mngr_data_ready failed: %s",
 			nl_geterror(err));
 	}
+	rip_route_print_table(rr);
+	LOG_TRACE();
 }
 
 static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr,
@@ -134,7 +123,7 @@ static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr,
 }
 
 static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest,
-			  struct rtnl_nexthop *next_hop)
+			  struct rtnl_nexthop *next_hop, uint8_t metric)
 {
 	int ec = 0;
 
@@ -148,7 +137,7 @@ static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest,
 	}
 	rtnl_route_set_table(route, RT_TABLE_MAIN);
 	rtnl_route_set_protocol(route, RTPROT_RIP);
-	rtnl_route_set_priority(route, 20);
+	rtnl_route_set_priority(route, 20 + metric);
 	rtnl_route_add_nexthop(route, next_hop);
 	if ((ec = rtnl_route_set_dst(route, dest) < 0)) {
 		LOG_ERR("rtnl_route_set_dst: %s", nl_geterror(ec));
@@ -159,7 +148,7 @@ static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest,
 	return 0;
 }
 
-static int rip_fill_nl_addr(struct in_addr in_addr, int prefix_len,
+static int rip_fill_nl_addr(struct in_addr in_addr, uint8_t prefix_len,
 			    struct nl_addr *nl_addr)
 {
 	int ec;
@@ -201,7 +190,6 @@ static int rip_rtnl_route_create_alloc(struct rtnl_route **route,
 	}
 	return 0;
 alloc_failed:
-	LOG_ERR("alloc_failed");
 	nl_addr_put(*dest_nl);
 	nl_addr_put(*nexthop_nl_adr);
 	rtnl_route_nh_free(*nexthop_nl);
@@ -209,9 +197,7 @@ alloc_failed:
 	return 1;
 }
 
-struct rtnl_route *rip_rtnl_route_create(struct in_addr dest_in_addr,
-					 int dest_prefix, int nexthop_if_index,
-					 struct in_addr nexthop_in_addr)
+struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
 {
 	struct rtnl_route *route	= NULL;
 	struct nl_addr *dest_nl		= NULL;
@@ -224,27 +210,24 @@ struct rtnl_route *rip_rtnl_route_create(struct in_addr dest_in_addr,
 		return NULL;
 	}
 
-	if (rip_fill_nl_addr(dest_in_addr, dest_prefix, dest_nl) > 0) {
+	if (rip_fill_nl_addr(rd->dest_addr, rd->dest_prefix_len, dest_nl) > 0) {
 		LOG_ERR("rip_fill_nl_addr");
 		goto fill_error;
 	}
 
-	if (rip_fill_nl_addr(nexthop_in_addr, 32, nexthop_nl_addr) > 0) {
+	if (rip_fill_nl_addr(rd->nexthop_addr, 32, nexthop_nl_addr) > 0) {
 		LOG_ERR("rip_fill_nl_addr");
 		goto fill_error;
 	}
 
-	rip_fill_next_hop(nexthop_nl, nexthop_nl_addr, nexthop_if_index);
-	if (rip_fill_route(route, dest_nl, nexthop_nl) > 0) {
+	rip_fill_next_hop(nexthop_nl, nexthop_nl_addr, rd->next_hop_if_index);
+	if (rip_fill_route(route, dest_nl, nexthop_nl, rd->metric) > 0) {
 		LOG_ERR("rip_fill_route");
 		goto fill_error;
 	}
-
-	LOG_INFO("return");
 	return route;
 
 fill_error:
-	LOG_ERR("fill_error");
 	nl_addr_put(dest_nl);
 	nl_addr_put(nexthop_nl_addr);
 	rtnl_route_nh_free(nexthop_nl);
@@ -253,20 +236,17 @@ fill_error:
 	return NULL;
 }
 
-rip_route_entry *rip_route_entry_create(struct in_addr dest_in_addr,
-					int dest_prefix, int nexthop_if_index,
-					struct in_addr nexthop_in_addr)
+rip_route_entry *
+rip_route_entry_create(const struct rip_route_description *route_description)
 {
 	LOG_INFO("%s", __func__);
 	struct rtnl_route *route = NULL;
 
-	if (!(route =
-		  rip_rtnl_route_create(dest_in_addr, dest_prefix,
-					nexthop_if_index, nexthop_in_addr))) {
+	if (!(route = rip_rtnl_route_create(route_description))) {
 		LOG_ERR("rip_rtnl_route_create");
 		return NULL;
 	}
-	LOG_INFO("%s dump ", __func__);
+
 	struct nl_dump_params dump_params = {
 	    .dp_fd   = stdout,
 	    .dp_type = NL_DUMP_LINE,
@@ -283,12 +263,13 @@ void rip_route_entry_free(rip_route_entry *entry)
 	rtnl_route_put(route);
 }
 
-int rip_route_add_route(struct rip_route *rr, rip_route_entry *entry)
+int rip_route_add_route(struct rip_route_mngr *rr, rip_route_entry *entry)
 {
 	LOG_INFO("%s", __func__);
 	int ec;
 	struct rtnl_route *route = entry;
-	if ((ec = rtnl_route_add(rr->sock, route, NLM_F_EXCL)) < 0) {
+
+	if ((ec = rtnl_route_add(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
 		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
 		return 1;
 	}
@@ -296,7 +277,7 @@ int rip_route_add_route(struct rip_route *rr, rip_route_entry *entry)
 	return 0;
 }
 
-void rip_route_print_table(struct rip_route *ri)
+void rip_route_print_table(struct rip_route_mngr *ri)
 {
 	struct nl_dump_params dump_params = {
 	    .dp_fd   = stdout,
@@ -310,7 +291,7 @@ int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data)
 {
 	assert(data);
 
-	struct rip_route *mngr		  = data;
+	struct rip_route_mngr *mngr		  = data;
 	struct nl_dump_params dump_params = {
 	    .dp_buf    = resp_buffer,
 	    .dp_buflen = buffer_size,

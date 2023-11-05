@@ -8,8 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entry,
-		    const struct in_addr sender);
+int handle_response(struct rip_route_mngr * route_mngr, struct rip2_entry entries[],
+		    size_t n_entry, struct in_addr sender_addr, int origin_if_index);
 
 
 bool is_unicast_address(uint32_t address);

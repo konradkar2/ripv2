@@ -1,19 +1,23 @@
 #ifndef RIP_DATABASE_H
 #define RIP_DATABASE_H
 
+#include "rip_common.h"
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdint.h>
 
-typedef struct rip_network {
-	struct in_addr ip_address;
-	struct in_addr subnet_mask;
-} rip_network;
+#define RIP_DB_LENGTH 500
 
-typedef struct rip_db_entry {
-	rip_network network;
-	uint32_t metric;
-	struct in_addr next_hop;
-    int if_index_origin;
-} rip_db_entry;
+struct rip_db_entry {
+	struct rip_route_description route;
+	// interface on which route has been received
+	int if_index_origin;
+};
+
+struct rip_db {
+	struct rip_db_entry added_routes[RIP_DB_LENGTH];
+};
+
+bool rip_db_contains(const struct rip_db_entry * entry);
 
 #endif

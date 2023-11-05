@@ -1,24 +1,52 @@
 #include "vector.h"
+#include <stddef.h>
+#include <stdlib.h>
 
-void vector_init(vector *vec, size_t total_length, void *data, size_t el_size)
+struct vector {
+	void *data;
+	size_t length;
+	size_t capacity;
+	size_t init_capacity;
+	size_t el_size;
+};
+
+struct vector *vector_create(size_t init_capacity, size_t el_size)
 {
-	assert("invalid vector data" && total_length > 0);
+	assert("invalid vector data" && init_capacity > 0);
 	assert("invalid vector data" && el_size > 0);
 
-	vec->data	  = data;
-	vec->total_length = total_length;
-	vec->el_size	  = el_size;
-	vec->length	  = 0;
+	struct vector *vec = NULL;
+
+	vec = calloc(1, sizeof(struct vector));
+	if (!vec) {
+		return NULL;
+	}
+
+	vec->data = calloc(1, init_capacity * el_size);
+
+	if (!vec->data) {
+		vector_free(vec);
+		return NULL;
+	}
+
+	vec->init_capacity = init_capacity;
+	vec->capacity	   = init_capacity;
+	vec->el_size	   = el_size;
+	vec->length	   = 0;
+	return vec;
 }
 
-inline size_t vec_get_len_total(vector *vec) { return vec->total_length; }
-inline size_t vec_get_len(vector *vec) { return vec->length; }
-inline size_t vec_get_len_left(vector *vec)
+void vector_free(struct vector *vec)
 {
-	return vec->total_length - vec->length;
+	if (!vec) {
+		return;
+	}
+	free(vec->data);
+	free(vec);
 }
 
-inline void *vector_get_el(vector *vec, size_t index)
+size_t vec_get_len(const struct vector *vec) { return vec->length; }
+inline void *vector_get_el(struct vector *vec, size_t index)
 {
 	if (index < vec->length) {
 		return (char *)vec->data + index * vec->el_size;
@@ -26,33 +54,67 @@ inline void *vector_get_el(vector *vec, size_t index)
 	return NULL;
 }
 
-int vector_add_el(vector *vec, void *element, size_t el_size)
+inline static int vector_realloc(struct vector *vec, size_t new_capacity)
+{
+	void *new_data = realloc(vec->data, new_capacity * vec->el_size);
+
+	if (new_data == NULL)
+		return 1;
+	vec->data = new_data;
+
+	size_t old_capacity = new_capacity - vec->capacity;
+	if (new_capacity > old_capacity) {
+		char *old_cap_boundary =
+		    (char *)vec->data + old_capacity * vec->el_size;
+		memset(old_cap_boundary, 0, // NOLINT
+		       (new_capacity - old_capacity) * vec->el_size);
+	}
+
+	vec->capacity = new_capacity;
+	return 0;
+}
+
+int vector_add_el(struct vector *vec, void *element, size_t el_size)
 {
 	assert(vec->el_size == el_size);
-	if (vec_get_len_left(vec) == 0) {
-		return 1;
+
+	if (vec->length == vec->capacity) {
+		int new_capacity = vec->capacity * 2;
+		if (vector_realloc(vec, new_capacity) > 0) {
+			return 1;
+		}
 	}
 
 	char *data = (char *)vec->data;
 	void *dest = data + (vec->length * vec->el_size);
-	memcpy(dest, element, el_size); //NOLINT
+	memcpy(dest, element, el_size); // NOLINT
 	++vec->length;
 
 	return 0;
 }
 
-int vector_del_el(vector *vec, size_t idx)
+int vector_del_el(struct vector *vec, size_t idx)
 {
 	if (idx >= vec->length) {
 		return 1;
 	}
 
-	char *data = (char *)vec->data;
-	void *dest = data + (idx * vec->el_size);
-	void *src  = data + ((idx + 1) * vec->el_size);
-	size_t n   = (vec->total_length - idx) * vec->el_size;
-	memmove(dest, src, n); //NOLINT
+	char *data	   = (char *)vec->data;
+	void *el_addr	   = data + (idx * vec->el_size);
+	void *next_el_addr = data + ((idx + 1) * vec->el_size);
+
+	size_t n = (vec->length - idx) * vec->el_size;
+	memmove(el_addr, next_el_addr, n); // NOLINT
 	--vec->length;
+
+	// make sure there are at least init_capacity elements
+	if (vec->length > vec->init_capacity) {
+		size_t new_capacity = vec->capacity / 2;
+		if (vec->length < new_capacity) {
+			// assume no failure as we decrease the size
+			vector_realloc(vec, new_capacity);
+		}
+	}
 
 	return 0;
 }

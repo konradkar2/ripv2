@@ -1,5 +1,7 @@
 #include "rip_handle_resp.h"
 #include "logging.h"
+#include "rip_if.h"
+#include "rip_route.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "utils.h"
@@ -28,28 +30,15 @@ bool is_unicast_address(uint32_t address)
 
 bool is_net_mask_valid(uint32_t net_mask)
 {
-	if (net_mask == 0xffffffff) {
+	if (net_mask == 0 || net_mask == 0xFFFFFFFF) {
 		return false;
 	}
 
-	bool had_one  = false;
-	bool had_zero = false;
-	for (size_t i = 0; i < 32; ++i) {
+	size_t trailing_zeros	  = __builtin_ctz(net_mask);
+	uint32_t net_mask_flipped = ~net_mask;
+	size_t leading_ones	  = __builtin_clz(net_mask_flipped);
 
-		if ((net_mask & 0x80000000) == 0x80000000) {
-			if (had_zero) {
-				return false;
-			}
-			had_one = true;
-		} else {
-			if (had_one == false) {
-				return false;
-			}
-			had_zero = true;
-		}
-		net_mask <<= 1;
-	}
-	return had_one;
+	return (leading_ones + trailing_zeros) == 32;
 }
 
 inline bool is_metric_valid(uint32_t metric)
@@ -62,18 +51,19 @@ static inline void update_metric(uint32_t *metric)
 	*metric = MIN(*metric + 1, INFINITY_METRIC);
 }
 
-int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entry,
-		    const struct in_addr sender)
+int handle_response(struct rip_route_mngr * route_mngr, struct rip2_entry entries[],
+		    size_t n_entry, struct in_addr sender_addr, int origin_if_index)
 {
-	(void)ctx;
-	(void)sender;
-
+	(void)route_mngr;
+	(void)sender_addr;
+	(void)origin_if_index;
+	
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
 
-		//printf("[%zu]\n", i);
+		// printf("[%zu]\n", i);
 		rip2_entry_ntoh(entry);
-		//rip2_entry_print(entry);
+		// rip2_entry_print(entry);
 
 		if (!is_unicast_address(entry->ip_address) ||
 		    !is_net_mask_valid(entry->subnet_mask) ||
@@ -88,6 +78,7 @@ int handle_response(rip_context *ctx, struct rip2_entry entries[], size_t n_entr
 		if (entry->metric == INFINITY_METRIC) {
 			return 0;
 		}
+
 	}
 	return 0;
 }
