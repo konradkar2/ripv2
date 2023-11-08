@@ -62,8 +62,8 @@ inline static int vector_realloc(struct vector *vec, size_t new_capacity)
 
 	if (new_data == NULL)
 		return 1;
-	vec->data = new_data;
 
+	vec->data	    = new_data;
 	size_t old_capacity = new_capacity - vec->capacity;
 	if (new_capacity > old_capacity) {
 		char *old_cap_boundary =
@@ -125,7 +125,7 @@ int vector_del(struct vector *vec, size_t idx)
 	// make sure there are at least init_capacity elements
 	if (vec->length > vec->init_capacity) {
 		size_t new_capacity = vec->capacity / 2;
-		if (vec->length < new_capacity) {
+		if (new_capacity > 0 && vec->length < new_capacity) {
 			// assume no failure as we decrease the size
 			vector_realloc(vec, new_capacity);
 		}

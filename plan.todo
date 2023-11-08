@@ -36,19 +36,19 @@
     greater than infinity, use infinity.  That is,
         metric = MIN (metric + cost, infinity)
 
-    [ ] Now, check to see whether there is already an explicit route for the
+    [x] Now, check to see whether there is already an explicit route for the
         destination address.  If there is no such route, add this route to
         the routing table, unless the metric is infinity (there is no point
         in adding a route which is unusable).  Adding a route to the routing
         table consists of:
 
-    [ ] Setting the destination address to the destination address in the
+    [x] Setting the destination address to the destination address in the
                 RTE
 
-    [ ] Setting the metric to the newly calculated metric (as described
+    [?] Setting the metric to the newly calculated metric (as described
      above)
 
-    [ ] Set the next hop address to be the address of the router from which
+    [x] Set the next hop address to be the address of the router from which
      the datagram came
 
     [ ] Initialize the timeout for the route.  If the garbage-collection

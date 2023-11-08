@@ -32,6 +32,12 @@ struct rip_route_mngr {
 static void dump_caches(struct rip_route_mngr *rr,
 			struct nl_dump_params *dump_params)
 {
+	struct rtnl_route *filter = rtnl_route_alloc();
+	if (!filter) {
+		LOG_ERR("rtnl_route_alloc");
+		return;
+	}
+	rtnl_route_set_protocol(filter, RTPROT_RIP);
 	nl_cache_dump_filter(rr->route_cache, dump_params, NULL);
 }
 

@@ -86,6 +86,7 @@ int handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		struct rip_route_description route_descr = {
 		    .entry	       = *entry, // TODO: optimize
 		    .next_hop_if_index = origin_if_index};
+			
 		if (!rip_db_add(db, &route_descr)) {
 
 			LOG_ERR("Entry already exists");
