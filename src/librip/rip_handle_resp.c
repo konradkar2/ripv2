@@ -56,56 +56,80 @@ static inline void update_metric(uint32_t *metric)
 	*metric = MIN(*metric + 1, INFINITY_METRIC);
 }
 
+bool is_entry_valid(struct rip2_entry *entry)
+{
+	if (!is_unicast_address(entry->ip_address) ||
+	    !is_net_mask_valid(entry->subnet_mask) ||
+	    !is_metric_valid(entry->metric)) {
+		LOG_ERR("Invalid entry:");
+		rip2_entry_print(entry, stdout);
+		return false;
+	}
+
+	return true;
+}
+
+int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
+		 struct rip2_entry *entry, struct in_addr sender_addr,
+		 int origin_if_index)
+{
+	LOG_TRACE();
+	// printf("[%zu]\n", i);
+	rip2_entry_ntoh(entry);
+	// rip2_entry_print(entry);
+
+	if (false == is_entry_valid(entry)) {
+		return 0;
+	}
+
+	update_metric(&entry->metric);
+	if (entry->metric == INFINITY_METRIC) {
+		LOG_ERR("Max metric reached");
+		return 0;
+	}
+
+	entry->next_hop				 = sender_addr;
+	struct rip_route_description route_descr = {
+	    .entry	       = *entry, // TODO: optimize
+	    .next_hop_if_index = origin_if_index};
+
+	if (!rip_db_add(db, &route_descr)) {
+
+		LOG_ERR("Entry already exists");
+		return 0;
+	}
+
+	rip_route_entry *route_entry = rip_route_entry_create(&route_descr);
+	if (!route_entry) {
+		LOG_ERR("rip_route_entry_create");
+		return 0;
+	}
+
+	if (rip_route_add_route(route_mngr, route_entry) > 0) {
+		// Either a bug (in ripv2/libnl) or someone added route
+		// manually
+		// TODO: somehow synchronize two DB's if someones add
+		// manual route Or maybe delete the manual one (?)
+		LOG_ERR("rip_route_add_route");
+		rip_db_remove(db, &route_descr);
+	}
+
+	rip_route_entry_free(route_entry);
+	return 0;
+}
+
 int handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		    struct rip2_entry entries[], size_t n_entry,
 		    struct in_addr sender_addr, int origin_if_index)
 {
+	int ret = 0;
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
-
-		// printf("[%zu]\n", i);
-		rip2_entry_ntoh(entry);
-		// rip2_entry_print(entry);
-
-		if (!is_unicast_address(entry->ip_address) ||
-		    !is_net_mask_valid(entry->subnet_mask) ||
-		    !is_metric_valid(entry->metric)) {
-			LOG_ERR("Invalid entry:");
-			rip2_entry_print(entry);
-			return 0;
+		if (handle_entry(route_mngr, db, entry, sender_addr,
+				 origin_if_index)) {
+			ret = 1;
 		}
-
-		LOG_INFO("Valid entry!");
-		update_metric(&entry->metric);
-		if (entry->metric == INFINITY_METRIC) {
-			LOG_ERR("Max metric reached");
-			return 0;
-		}
-
-		entry->next_hop				 = sender_addr;
-		struct rip_route_description route_descr = {
-		    .entry	       = *entry, // TODO: optimize
-		    .next_hop_if_index = origin_if_index};
-			
-		if (!rip_db_add(db, &route_descr)) {
-
-			LOG_ERR("Entry already exists");
-			return 0;
-		}
-
-		rip_route_entry *route_entry =
-		    rip_route_entry_create(&route_descr);
-		if (!route_entry) {
-			LOG_ERR("rip_route_entry_create");
-			return 0;
-		}
-
-		if (rip_route_add_route(route_mngr, route_entry) > 0) {
-			LOG_ERR("rip_route_add_route");
-		}
-		rip_route_entry_free(route_entry);
-		return 0;
 	}
 
-	return 0;
+	return ret;
 }

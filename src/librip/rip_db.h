@@ -18,4 +18,6 @@ bool rip_db_add(struct rip_db *, struct rip_route_description *entry);
 bool rip_db_contains(struct rip_db *, struct rip_route_description *entry);
 bool rip_db_remove(struct rip_db *, struct rip_route_description *entry);
 
+//void rip_db_dump(char *resp_buffer, size_t buffer_size, void *data);
+
 #endif

@@ -3,6 +3,7 @@
 #include "rip_common.h"
 #include "rip_messages.h"
 #include "utils.h"
+#include <stdio.h>
 #include <string.h>
 #include <utils/vector.h>
 
@@ -18,7 +19,7 @@ int rip_db_init(struct rip_db *db)
 }
 void rip_db_destroy(struct rip_db *db)
 {
-	if (db->added_routes)
+	if (db && db->added_routes)
 		vector_free(db->added_routes);
 }
 
@@ -76,3 +77,19 @@ bool rip_db_remove(struct rip_db *db, struct rip_route_description *entry)
 
 	return 0;
 }
+
+/*
+void rip_db_dump(char *resp_buffer, size_t buffer_size, void *data)
+{
+	const struct rip_db * db = data;
+
+	size_t vec_len = vector_get_len(db->added_routes);
+	for (size_t i = 0; i < vec_len ; ++i) {
+		snprintf(resp_buffer, buffer_size, "");
+	}
+
+	snprintf(resp_buffer, buffer_size, "");
+	
+}
+
+*/

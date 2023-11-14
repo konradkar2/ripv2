@@ -25,24 +25,25 @@ void rip_header_print(const struct rip_header *r_h)
 	fflush(stdout);
 }
 
-void rip2_entry_print(const struct rip2_entry *r2_e)
+void rip2_entry_print(const struct rip2_entry *r2_e, FILE *file)
 {
 	char str[INET_ADDRSTRLEN];
 
-	printf("{\n");
-	printf("\trouting_family_id: %" PRId16 "\n", r2_e->routing_family_id);
-	printf("\troute_tag: %" PRId16 "\n", r2_e->route_tag);
+	fprintf(file, "{\n");
+	fprintf(file, "\trouting_family_id: %" PRId16 "\n",
+		r2_e->routing_family_id);
+	fprintf(file, "\troute_tag: %" PRId16 "\n", r2_e->route_tag);
 
 	inet_ntop(AF_INET, &(r2_e->ip_address), str, INET_ADDRSTRLEN);
-	printf("\tip_address: %s\n", str);
+	fprintf(file, "\tip_address: %s\n", str);
 
 	inet_ntop(AF_INET, &(r2_e->subnet_mask), str, INET_ADDRSTRLEN);
-	printf("\tsubnet_mask: %s\n", str);
+	fprintf(file, "\tsubnet_mask: %s\n", str);
 
 	inet_ntop(AF_INET, &(r2_e->next_hop), str, INET_ADDRSTRLEN);
-	printf("\tnext_hop: %s\n", str);
-	printf("\tmetric: %" PRId8 "\n", r2_e->metric);
+	fprintf(file, "\tnext_hop: %s\n", str);
+	fprintf(file, "\tmetric: %" PRId8 "\n", r2_e->metric);
 
-	printf("}\n");
-	fflush(stdout);
+	fprintf(file, "}\n");
 }
+

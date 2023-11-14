@@ -28,10 +28,6 @@ add_executable(rip-cli
     rip_cli.c
 )
 
-add_executable(netlink-test
-    netlink_test.c
-)
-
 target_link_libraries(rip
     librip
     utils
@@ -44,4 +40,4 @@ target_link_libraries(rip-cli
 # Installation
 install(TARGETS rip DESTINATION bin)
 install(TARGETS rip-cli DESTINATION bin)
-install(TARGETS netlink-test DESTINATION bin)
+

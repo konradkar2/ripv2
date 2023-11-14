@@ -2,6 +2,7 @@
 #include "logging.h"
 #include "netlink/object.h"
 #include "rip_common.h"
+#include "rip_ipc.h"
 #include "rip_messages.h"
 #include "utils.h"
 #include <arpa/inet.h>
@@ -38,7 +39,8 @@ static void dump_caches(struct rip_route_mngr *rr,
 		return;
 	}
 	rtnl_route_set_protocol(filter, RTPROT_RIP);
-	nl_cache_dump_filter(rr->route_cache, dump_params, NULL);
+	nl_cache_dump_filter(rr->route_cache, dump_params, OBJ_CAST(filter));
+	free(filter);
 }
 
 struct rip_route_mngr *rip_route_alloc_init(void)
@@ -114,8 +116,6 @@ void rip_route_handle_netlink_io(struct rip_route_mngr *rr)
 		LOG_ERR("nl_cache_mngr_data_ready failed: %s",
 			nl_geterror(err));
 	}
-	rip_route_print_table(rr);
-	LOG_TRACE();
 }
 
 static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr,
@@ -301,18 +301,17 @@ void rip_route_print_table(struct rip_route_mngr *ri)
 	dump_caches(ri, &dump_params);
 }
 
-int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data)
+enum r_cmd_status rip_route_sprintf_table(FILE *file, void *data)
 {
+	LOG_TRACE();
 	assert(data);
 
 	struct rip_route_mngr *mngr	  = data;
 	struct nl_dump_params dump_params = {
-	    .dp_buf    = resp_buffer,
-	    .dp_buflen = buffer_size,
-	    .dp_type   = NL_DUMP_LINE,
+	    .dp_fd   = file,
+	    .dp_type = NL_DUMP_LINE,
 	};
 
 	dump_caches(mngr, &dump_params);
-
-	return 0;
+	return r_cmd_status_success;
 }

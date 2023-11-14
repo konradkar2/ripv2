@@ -104,15 +104,28 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		goto cleanup;
 	}
 
-	int status =
-	    hl->cb(response->output, sizeof(response->output), hl->data);
-	if (status != 0) {
-		LOG_ERR("Failed to execute: %d", hl->cmd);
-		response->cmd_status = r_cmd_status_failed;
+	int status = r_cmd_status_success;
+	FILE *buffer_stream =
+	    fmemopen(response->output, sizeof(response->output), "wr");
+	if (NULL == buffer_stream) {
+		LOG_ERR("fmemopen");
+		status = r_cmd_internal_error;
 	} else {
-		response->cmd_status = r_cmd_status_success;
+		hl->cb(buffer_stream, hl->data);
+
+		if (ferror(buffer_stream)) {
+			printf("Error Writing to buffer_stream\n");
+			status = r_cmd_internal_error;
+		}
+
+		if (status != r_cmd_status_success) {
+			LOG_ERR("Failed to execute: %d", hl->cmd);
+		}
+
+		fclose(buffer_stream);
 	}
 
+	puts(response->output);
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
 		    0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));

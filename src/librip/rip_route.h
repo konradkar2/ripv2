@@ -23,6 +23,6 @@ int rip_route_add_route(struct rip_route_mngr *, rip_route_entry *entry);
 
 /// helpers
 void rip_route_print_table(struct rip_route_mngr *);
-int rip_route_sprintf_table(char *resp_buffer, size_t buffer_size, void *data);
+enum r_cmd_status rip_route_sprintf_table(FILE * file, void *data);
 
 #endif
