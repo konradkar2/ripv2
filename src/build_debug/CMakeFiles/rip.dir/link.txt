@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wextra -Werror -Wpedantic -Wunused -Wcast-align -fsanitize=undefined -g -O0 -g CMakeFiles/rip.dir/ripd.c.o -o rip  librip/liblibrip.a utils/libutils.a -lnl-route-3 -lnl-3 /usr/lib/x86_64-linux-gnu/librt.a 

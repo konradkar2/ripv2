@@ -6,7 +6,8 @@
 #include <stdio.h>
 
 enum rip_ipc_cmd {
-	dump_routing_table = 0,
+	dump_libnl_route_table = 0,
+	dump_rip_routes,
 };
 
 enum r_cmd_status {

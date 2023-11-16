@@ -1,6 +1,6 @@
 #include "test.h"
 #include "utils.h"
-#include "vector.h"
+#include <utils/vector.h>
 #include <assert.h>
 
 typedef struct {

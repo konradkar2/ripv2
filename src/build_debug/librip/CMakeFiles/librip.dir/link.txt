@@ -1,0 +1,2 @@
+/usr/bin/ar qc liblibrip.a CMakeFiles/librip.dir/rip.c.o CMakeFiles/librip.dir/rip_messages.c.o CMakeFiles/librip.dir/rip_if.c.o CMakeFiles/librip.dir/rip_handle_resp.c.o CMakeFiles/librip.dir/rip_route.c.o CMakeFiles/librip.dir/rip_ipc.c.o CMakeFiles/librip.dir/rip_db.c.o CMakeFiles/librip.dir/rip_common.c.o
+/usr/bin/ranlib liblibrip.a

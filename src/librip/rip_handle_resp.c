@@ -93,9 +93,8 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	    .entry	       = *entry, // TODO: optimize
 	    .next_hop_if_index = origin_if_index};
 
-	if (!rip_db_add(db, &route_descr)) {
-
-		LOG_ERR("Entry already exists");
+	rip_route_description_print(&route_descr, stdout);
+	if (rip_db_contains(db, &route_descr)) {
 		return 0;
 	}
 
@@ -106,12 +105,10 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	}
 
 	if (rip_route_add_route(route_mngr, route_entry) > 0) {
-		// Either a bug (in ripv2/libnl) or someone added route
-		// manually
-		// TODO: somehow synchronize two DB's if someones add
-		// manual route Or maybe delete the manual one (?)
 		LOG_ERR("rip_route_add_route");
-		rip_db_remove(db, &route_descr);
+	}
+	if (rip_db_add(db, &route_descr)) {
+		LOG_ERR("rip_db_add");
 	}
 
 	rip_route_entry_free(route_entry);

@@ -5,6 +5,7 @@ project(utils VERSION 1.0)
 add_library(${PROJECT_NAME}
         STATIC
         vector.c
+        hashmap.c
 )
 add_library(rip::${PROJECT_NAME} ALIAS utils)
 

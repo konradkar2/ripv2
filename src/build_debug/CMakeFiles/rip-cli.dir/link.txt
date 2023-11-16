@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wextra -Werror -Wpedantic -Wunused -Wcast-align -fsanitize=undefined -g -O0 -g "CMakeFiles/rip-cli.dir/rip_cli.c.o" -o rip-cli  librip/liblibrip.a -lnl-route-3 -lnl-3 /usr/lib/x86_64-linux-gnu/librt.a utils/libutils.a 

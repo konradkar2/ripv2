@@ -20,6 +20,7 @@ struct rip_ipc {
 	mqd_t fd;
 	struct r_ipc_cmd_handler *cmd_h;
 	size_t cmd_h_len;
+	const char *queue_name;
 };
 
 static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
@@ -39,6 +40,7 @@ void rip_ipc_free(struct rip_ipc *ri)
 {
 	if (ri->fd > 0) {
 		mq_close(ri->fd);
+		mq_unlink(ri->queue_name);
 	}
 	free(ri);
 }
@@ -52,18 +54,19 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
 			       .mq_maxmsg  = 10,
 			       .mq_msgsize = REQ_BUFFER_SIZE};
 	mode_t permission   = QUEUE_PERMISSIONS;
+	const char *q_name  = RIP_DEAMON_QUEUE;
 
-	fd = mq_open(RIP_DEAMON_QUEUE, O_RDONLY | O_CREAT | O_NONBLOCK,
-		     &permission, &attr);
+	fd = mq_open(q_name, O_RDONLY | O_CREAT | O_NONBLOCK, &permission,
+		     &attr);
 	if (fd == -1) {
-		LOG_ERR("mq_open(%s) failed: %s", RIP_DEAMON_QUEUE,
-			strerror(errno));
+		LOG_ERR("mq_open(%s) failed: %s", q_name, strerror(errno));
 		return 1;
 	}
 
-	ri->fd	      = fd;
-	ri->cmd_h     = handlers;
-	ri->cmd_h_len = len;
+	ri->fd	       = fd;
+	ri->cmd_h      = handlers;
+	ri->cmd_h_len  = len;
+	ri->queue_name = q_name;
 
 	return 0;
 }
@@ -125,7 +128,6 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		fclose(buffer_stream);
 	}
 
-	puts(response->output);
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
 		    0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));
@@ -144,16 +146,18 @@ void cli_rip_ipc_init(struct rip_ipc *ri)
 			       .mq_maxmsg  = 10,
 			       .mq_msgsize = sizeof(struct ipc_response)};
 
-	mode_t permission = QUEUE_PERMISSIONS;
+	mode_t permission  = QUEUE_PERMISSIONS;
+	const char *q_name = RIP_CLI_QUEUE;
 
-	fd = mq_open(RIP_CLI_QUEUE, O_RDONLY | O_CREAT, &permission, &attr);
+	fd = mq_open(q_name, O_RDONLY | O_CREAT, &permission, &attr);
 	if (fd == -1) {
-		fprintf(stderr, "mq_open(%s) failed: %s", RIP_CLI_QUEUE,
+		fprintf(stderr, "mq_open(%s) failed: %s", q_name,
 			strerror(errno));
 		exit(1);
 	}
 
-	ri->fd = fd;
+	ri->fd	       = fd;
+	ri->queue_name = q_name;
 }
 
 void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,

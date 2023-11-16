@@ -202,13 +202,6 @@ alloc_failed:
 	return 1;
 }
 
-static int get_prefix_len(struct in_addr subnet_mask)
-{
-	uint32_t host_mask     = ntohl(subnet_mask.s_addr);
-	uint32_t inverted_mask = ~host_mask;
-	return __builtin_clz(inverted_mask);
-}
-
 struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
 {
 	struct rtnl_route *route	= NULL;
@@ -279,7 +272,7 @@ void rip_route_entry_free(rip_route_entry *entry)
 
 int rip_route_add_route(struct rip_route_mngr *rr, rip_route_entry *entry)
 {
-	LOG_INFO("%s", __func__);
+	LOG_TRACE();
 	int ec;
 	struct rtnl_route *route = entry;
 

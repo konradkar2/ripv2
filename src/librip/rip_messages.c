@@ -1,5 +1,6 @@
 #include "rip_messages.h"
 #include "logging.h"
+#include "rip_common.h"
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <netinet/in.h>
@@ -29,21 +30,14 @@ void rip2_entry_print(const struct rip2_entry *r2_e, FILE *file)
 {
 	char str[INET_ADDRSTRLEN];
 
-	fprintf(file, "{\n");
-	fprintf(file, "\trouting_family_id: %" PRId16 "\n",
-		r2_e->routing_family_id);
-	fprintf(file, "\troute_tag: %" PRId16 "\n", r2_e->route_tag);
+	fprintf(file, "rfamily_id %" PRId16 ", ", r2_e->routing_family_id);
+	fprintf(file, "rtag %" PRId16 ", ", r2_e->route_tag);
 
 	inet_ntop(AF_INET, &(r2_e->ip_address), str, INET_ADDRSTRLEN);
-	fprintf(file, "\tip_address: %s\n", str);
-
-	inet_ntop(AF_INET, &(r2_e->subnet_mask), str, INET_ADDRSTRLEN);
-	fprintf(file, "\tsubnet_mask: %s\n", str);
+	int prefix_len = get_prefix_len(r2_e->subnet_mask);
+	fprintf(file, "network %s/%d, ", str, prefix_len);
 
 	inet_ntop(AF_INET, &(r2_e->next_hop), str, INET_ADDRSTRLEN);
-	fprintf(file, "\tnext_hop: %s\n", str);
-	fprintf(file, "\tmetric: %" PRId8 "\n", r2_e->metric);
-
-	fprintf(file, "}\n");
+	fprintf(file, "nh %s, ", str);
+	fprintf(file, "metric %" PRId8 "", r2_e->metric);
 }
-

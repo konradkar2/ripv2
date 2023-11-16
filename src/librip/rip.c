@@ -173,10 +173,12 @@ int rip_begin(rip_context *rip_ctx)
 		return 1;
 	}
 
-	struct r_ipc_cmd_handler handlers[] = {
-	    [0] = {.cmd	 = dump_routing_table,
-		   .data = rip_ctx->route_mngr,
-		   .cb	 = rip_route_sprintf_table}};
+	struct r_ipc_cmd_handler handlers[] = {{.cmd  = dump_libnl_route_table,
+						.data = rip_ctx->route_mngr,
+						.cb = rip_route_sprintf_table},
+					       {.cmd  = dump_rip_routes,
+						.data = &rip_ctx->rip_db,
+						.cb   = rip_db_dump}};
 
 	if (rip_ipc_init(rip_ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
 		return 1;
