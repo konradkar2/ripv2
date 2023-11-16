@@ -73,6 +73,8 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		 struct rip2_entry *entry, struct in_addr sender_addr,
 		 int origin_if_index)
 {
+	const struct rip_route_description *old_route = NULL;
+
 	LOG_TRACE();
 	// printf("[%zu]\n", i);
 	rip2_entry_ntoh(entry);
@@ -88,30 +90,29 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		return 0;
 	}
 
-	entry->next_hop				 = sender_addr;
-	struct rip_route_description route_descr = {
+	entry->next_hop				    = sender_addr;
+	struct rip_route_description incoming_route = {
 	    .entry	       = *entry, // TODO: optimize
 	    .next_hop_if_index = origin_if_index};
 
-	rip_route_description_print(&route_descr, stdout);
-	if (rip_db_contains(db, &route_descr)) {
+	rip_route_description_print(&incoming_route, stdout);
+
+	old_route = rip_db_get(db, &incoming_route);
+	if (old_route) {
+		/*network already exists, check if e.g. prefix is longer, and
+		 * replace it */
+		// for now do nothing
 		return 0;
 	}
 
-	rip_route_entry *route_entry = rip_route_entry_create(&route_descr);
-	if (!route_entry) {
-		LOG_ERR("rip_route_entry_create");
-		return 0;
+	if (rip_route_add_route(route_mngr, &incoming_route) > 0) {
+		return 1;
 	}
 
-	if (rip_route_add_route(route_mngr, route_entry) > 0) {
-		LOG_ERR("rip_route_add_route");
-	}
-	if (rip_db_add(db, &route_descr)) {
-		LOG_ERR("rip_db_add");
+	if (rip_db_add(db, &incoming_route)) {
+		return 1;
 	}
 
-	rip_route_entry_free(route_entry);
 	return 0;
 }
 

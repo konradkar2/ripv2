@@ -202,7 +202,8 @@ alloc_failed:
 	return 1;
 }
 
-struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
+static struct rtnl_route *
+rip_rtnl_route_create(const struct rip_route_description *rd)
 {
 	struct rtnl_route *route	= NULL;
 	struct nl_addr *dest_nl		= NULL;
@@ -243,7 +244,7 @@ fill_error:
 	return NULL;
 }
 
-rip_route_entry *
+struct rtnl_route *
 rip_route_entry_create(const struct rip_route_description *route_description)
 {
 	LOG_INFO("%s", __func__);
@@ -264,34 +265,30 @@ rip_route_entry_create(const struct rip_route_description *route_description)
 	return route;
 }
 
-void rip_route_entry_free(rip_route_entry *entry)
-{
-	struct rtnl_route *route = entry;
-	rtnl_route_put(route);
-}
-
-int rip_route_add_route(struct rip_route_mngr *rr, rip_route_entry *entry)
+int rip_route_add_route(struct rip_route_mngr *rr,
+			const struct rip_route_description *route_entry_input)
 {
 	LOG_TRACE();
-	int ec;
-	struct rtnl_route *route = entry;
+	int ec			 = 0;
+	int ret			 = 0;
+	struct rtnl_route *route = NULL;
 
-	if ((ec = rtnl_route_add(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
-		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
+	if (!(route = rip_rtnl_route_create(route_entry_input))) {
 		return 1;
 	}
 
-	return 0;
+	if ((ec = rtnl_route_add(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
+		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
+		ret = 1;
+	}
+
+	rtnl_route_put(route);
+	return ret;
 }
 
 void rip_route_print_table(struct rip_route_mngr *ri)
 {
-	struct nl_dump_params dump_params = {
-	    .dp_fd   = stdout,
-	    .dp_type = NL_DUMP_LINE,
-	};
-
-	dump_caches(ri, &dump_params);
+	rip_route_sprintf_table(stdout, ri);
 }
 
 enum r_cmd_status rip_route_sprintf_table(FILE *file, void *data)

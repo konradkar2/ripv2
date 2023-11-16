@@ -46,9 +46,8 @@ void help(void)
 
 int main(int argc, char *argv[])
 {
-	int ret = 0;
 	(void)argc;
-	(void)argv;
+	int ret = 0;
 	signal(SIGINT, sig_handler);
 
 	struct rip_ipc *rip_ipc = rip_ipc_alloc();

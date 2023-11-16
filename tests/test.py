@@ -3,6 +3,8 @@ import time
 import pexpect
 import pytest
 from os import system
+from retry import retry
+
 
 
 def wait_for_prompt(munet: pexpect.spawn, timeout=5):
@@ -12,7 +14,8 @@ def wait_for_prompt(munet: pexpect.spawn, timeout=5):
 
 def run_munet(ns_path):
     munet = pexpect.spawn("munet -d {0}".format(ns_path))
-    wait_for_prompt(munet, 15)
+    time.sleep(1)
+    wait_for_prompt(munet, 20)
 
     output = munet.before.decode()
     print(output)
@@ -27,7 +30,10 @@ class Host:
     def execute_shell(self, cmd: str, timeout: int = 5) -> str:
         self.munet.sendline("{0} sh {1}".format(self.name, cmd))
         wait_for_prompt(self.munet, timeout)
-        return self.munet.before.decode()
+        
+        raw = self.munet.before.decode()
+        raw_lines = raw.split('\n')
+        return '\n'.join(raw_lines[1:])
 
 
 def has_connectivity(host: Host, address: str, retries: int = 4, sleep: float = 1):
@@ -80,11 +86,22 @@ def munet_env():
 def test_simple(munet_env):
     assert 1 == 1
 
+@retry(AssertionError, tries=5, delay=5.0)
+def test_contains_advertised_routes_intermediate(munet_env):
+    rip_routes_stdout = munet_env.r3.execute_shell("rip-cli -r").strip()
+    rip_routes = rip_routes_stdout.split('\n')
+    assert(len(rip_routes) == 3)
 
-def test_routing_table_updates(munet_env):
-    munet_env.r3.execute_shell(
-        "route -n add -net 240.0.0.0 netmask 255.255.255.255 dev eth0"
-    )
+def remove_last_line_if_empty(lines):
+    if lines and not lines[-1].strip():
+        lines.pop()
+    return lines
 
-    cli_route = munet_env.r3.execute_shell("rip-cli")
-    assert "240.0.0.0" in cli_route
+@retry(AssertionError, tries=5, delay=5.0)
+def test_contains_advertised_routes_libnl(munet_env):
+    nl_routes_stdout = munet_env.r3.execute_shell("rip-cli -n").strip()
+    nl_routes_routes = nl_routes_stdout.split('\n')
+    #liblns dumping functionality adds extra new line, so remove it
+    nl_routes_routes = remove_last_line_if_empty(nl_routes_routes)
+    assert(len(nl_routes_routes) == 3)
+

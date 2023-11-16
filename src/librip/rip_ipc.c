@@ -128,6 +128,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		fclose(buffer_stream);
 	}
 
+	response->cmd_status = status;
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
 		    0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));
