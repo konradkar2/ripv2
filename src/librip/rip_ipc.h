@@ -13,7 +13,6 @@ enum rip_ipc_cmd {
 enum r_cmd_status {
 	r_cmd_status_success = 0,
 	r_cmd_status_failed,
-	r_cmd_internal_error
 };
 
 typedef enum r_cmd_status (*rip_ipc_cb)(FILE *file, void *data);

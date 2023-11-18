@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 
 #define INFINITY_METRIC 16
@@ -74,27 +75,22 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		 int origin_if_index)
 {
 	const struct rip_route_description *old_route = NULL;
+	struct rip_route_description incoming_route   = {0};
 
-	LOG_TRACE();
-	// printf("[%zu]\n", i);
 	rip2_entry_ntoh(entry);
-	// rip2_entry_print(entry);
-
 	if (false == is_entry_valid(entry)) {
 		return 0;
 	}
 
 	update_metric(&entry->metric);
-	if (entry->metric == INFINITY_METRIC) {
+	if (entry->metric >= INFINITY_METRIC) {
 		LOG_ERR("Max metric reached");
 		return 0;
 	}
 
-	entry->next_hop				    = sender_addr;
-	struct rip_route_description incoming_route = {
-	    .entry	       = *entry, // TODO: optimize
-	    .next_hop_if_index = origin_if_index};
-
+	memcpy(&incoming_route.entry, entry, sizeof(*entry));
+	incoming_route.if_index	      = origin_if_index;
+	incoming_route.entry.next_hop = sender_addr;
 	rip_route_description_print(&incoming_route, stdout);
 
 	old_route = rip_db_get(db, &incoming_route);

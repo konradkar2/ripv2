@@ -1,2 +1,0 @@
-/usr/bin/ar qc libutils.a CMakeFiles/utils.dir/vector.c.o CMakeFiles/utils.dir/hashmap.c.o
-/usr/bin/ranlib libutils.a

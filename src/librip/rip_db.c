@@ -5,6 +5,7 @@
 #include "rip_messages.h"
 #include "utils.h"
 #include "utils/hashmap.h"
+#include <assert.h>
 #include <errno.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -22,17 +23,27 @@
 	       a->subnet_mask.s_addr == b->subnet_mask.s_addr;
 } */
 
+#define VALUE_FIELD_CMP(obj_a, obj_b, field)                                   \
+	if (obj_a->field != obj_b->field) {                                    \
+		return (obj_a->field > obj_b->field) -                         \
+		       (obj_a->field < obj_b->field);                          \
+	}
+
 static int rip_route_description_cmp(const void *el_a, const void *el_b,
 				     void *udata)
 {
 	(void)udata;
 	const struct rip_route_description *a = el_a;
 	const struct rip_route_description *b = el_b;
+	const struct rip2_entry *entry_a      = &a->entry;
+	const struct rip2_entry *entry_b      = &b->entry;
 
-	return a->entry.ip_address.s_addr == b->entry.ip_address.s_addr &&
-	       a->entry.subnet_mask.s_addr == b->entry.subnet_mask.s_addr &&
-	       a->entry.next_hop.s_addr == b->entry.next_hop.s_addr &&
-	       a->next_hop_if_index == b->next_hop_if_index;
+	VALUE_FIELD_CMP(a, b, if_index)
+	VALUE_FIELD_CMP(entry_a, entry_b, ip_address.s_addr)
+	VALUE_FIELD_CMP(entry_a, entry_b, subnet_mask.s_addr)
+	VALUE_FIELD_CMP(entry_a, entry_b, next_hop.s_addr)
+
+	return 0;
 }
 
 static uint64_t rip_route_description_cmp_hash(const void *item, uint64_t seed0,
@@ -49,11 +60,10 @@ static uint64_t rip_route_description_cmp_hash(const void *item, uint64_t seed0,
 	    .ip_address	 = route_descr->entry.ip_address,
 	    .subnet_mask = route_descr->entry.subnet_mask,
 	    .next_hop	 = route_descr->entry.next_hop,
-	    .if_index	 = route_descr->next_hop_if_index,
+	    .if_index	 = route_descr->if_index,
 	};
 
-	return hashmap_sip(&key, sizeof(key), seed0,
-			   seed1); // take ip, subnet, nexthop, and nextop index
+	return hashmap_sip(&key, sizeof(key), seed0, seed1);
 }
 
 int rip_db_init(struct rip_db *db)
@@ -82,6 +92,10 @@ int rip_db_add(struct rip_db *db, struct rip_route_description *entry)
 
 	if (hashmap_set(db->added_routes, entry)) {
 		LOG_ERR("rip_db_add: hashmap_set");
+		return 1;
+	}
+	if (hashmap_oom(db->added_routes)) {
+		LOG_ERR("hashmap_oom");
 		return 1;
 	}
 	return 0;

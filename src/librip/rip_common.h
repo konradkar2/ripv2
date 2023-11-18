@@ -9,7 +9,7 @@
 
 struct rip_route_description {
 	struct rip2_entry entry;
-	uint32_t next_hop_if_index;
+	uint32_t if_index;
 };
 //make sure it's padded
 static_assert(sizeof(struct rip_route_description) == 24, "");

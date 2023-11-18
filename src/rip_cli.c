@@ -25,9 +25,10 @@ int send_cmd(struct rip_ipc *rip_ipc, enum rip_ipc_cmd cmd)
 	cli_rip_ipc_send_msg(rip_ipc, req, &resp);
 
 	if (resp.cmd_status == r_cmd_status_failed) {
-		LOG_ERR("Failed to execute cmd\n");
+		printf("Failed to execute cmd, r_cmd_status_failed\n");
 		ret = 1;
 	}
+	
 	printf("%s", resp.output);
 
 	return ret;

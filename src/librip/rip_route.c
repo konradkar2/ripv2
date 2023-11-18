@@ -228,7 +228,7 @@ rip_rtnl_route_create(const struct rip_route_description *rd)
 		goto fill_error;
 	}
 
-	rip_fill_next_hop(nexthop_nl, nexthop_nl_addr, rd->next_hop_if_index);
+	rip_fill_next_hop(nexthop_nl, nexthop_nl_addr, rd->if_index);
 	if (rip_fill_route(route, dest_nl, nexthop_nl, entry->metric) > 0) {
 		LOG_ERR("rip_fill_route");
 		goto fill_error;
@@ -268,7 +268,6 @@ rip_route_entry_create(const struct rip_route_description *route_description)
 int rip_route_add_route(struct rip_route_mngr *rr,
 			const struct rip_route_description *route_entry_input)
 {
-	LOG_TRACE();
 	int ec			 = 0;
 	int ret			 = 0;
 	struct rtnl_route *route = NULL;
@@ -293,7 +292,6 @@ void rip_route_print_table(struct rip_route_mngr *ri)
 
 enum r_cmd_status rip_route_sprintf_table(FILE *file, void *data)
 {
-	LOG_TRACE();
 	assert(data);
 
 	struct rip_route_mngr *mngr	  = data;

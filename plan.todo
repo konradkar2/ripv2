@@ -20,7 +20,7 @@
         [?] solved by SO_BINDTODEVICE
         [ ] MULTICAST_LOOPBACK tbd if needed
 
-    [] process the RTEs in the Response one by one.  Again, start by doing validation.
+    [x] process the RTEs in the Response one by one.  Again, start by doing validation.
         Incorrect metrics and other format errors usually indicate
         misbehaving neighbors and should probably be brought to the
         administrator's attention.  For example, if the metric is greater
@@ -55,7 +55,7 @@
      timer is running for this route, stop it (see section 3.6 for a
      discussion of the timers)
 
-    [ ] Set the route change flag
+    [?] Set the route change flag
 
     [ ] Signal the output process to trigger an update (see section 3.8.1)
 

@@ -74,12 +74,14 @@ int rip_ipc_getfd(struct rip_ipc *ri) { return ri->fd; }
 
 void rip_ipc_handle_msg(struct rip_ipc *ri)
 {
-	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
 	ssize_t n_bytes;
+	mqd_t cli_q;
+	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
 	struct ipc_request *req;
 	struct r_ipc_cmd_handler *hl;
-	mqd_t cli_q;
 	struct ipc_response *response = NULL;
+	enum r_cmd_status status      = r_cmd_status_failed;
+	FILE *buffer_stream	      = NULL;
 
 	n_bytes = mq_receive(ri->fd, ipc_req_buffer, REQ_BUFFER_SIZE, NULL);
 	if (n_bytes < 0) {
@@ -87,7 +89,6 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		return;
 	}
 
-	req   = (struct ipc_request *)ipc_req_buffer;
 	cli_q = mq_open(RIP_CLI_QUEUE, O_WRONLY);
 	if (cli_q == -1) {
 		LOG_ERR("mq_open(%s) failed: %s", RIP_CLI_QUEUE,
@@ -101,31 +102,31 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		goto cleanup;
 	}
 
-	hl = find_handler(ri, req->cmd);
+	req = (struct ipc_request *)ipc_req_buffer;
+	hl  = find_handler(ri, req->cmd);
 	if (!hl) {
 		LOG_ERR("Handler not found, cmd: %d", req->cmd);
 		goto cleanup;
 	}
 
-	int status = r_cmd_status_success;
-	FILE *buffer_stream =
+	buffer_stream =
 	    fmemopen(response->output, sizeof(response->output), "wr");
+
 	if (NULL == buffer_stream) {
 		LOG_ERR("fmemopen");
-		status = r_cmd_internal_error;
 	} else {
-		hl->cb(buffer_stream, hl->data);
-
+		status = hl->cb(buffer_stream, hl->data);
 		if (ferror(buffer_stream)) {
-			printf("Error Writing to buffer_stream\n");
-			status = r_cmd_internal_error;
+			LOG_ERR("Error Writing to buffer_stream");
+			status = r_cmd_status_failed;
 		}
 
-		if (status != r_cmd_status_success) {
-			LOG_ERR("Failed to execute: %d", hl->cmd);
-		}
+		//needs to be invoked before mq_send to flush the buffer
+		fflush(buffer_stream);
+	}
 
-		fclose(buffer_stream);
+	if (status != r_cmd_status_success) {
+		LOG_ERR("Failed to execute: %d", hl->cmd);
 	}
 
 	response->cmd_status = status;
@@ -136,6 +137,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 
 cleanup:
 	free(response);
+	fclose(buffer_stream);
 	mq_close(cli_q);
 }
 

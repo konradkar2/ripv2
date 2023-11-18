@@ -17,7 +17,6 @@ void rip_db_destroy(struct rip_db *);
 
 int rip_db_add(struct rip_db *, struct rip_route_description *entry);
 
-// perform lookup by network address
 const struct rip_route_description *
 rip_db_get(struct rip_db *, struct rip_route_description *entry);
 
