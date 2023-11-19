@@ -3,7 +3,6 @@ venv
 build
 src/build
 src/build*
-src/rip
 .cache
 __pycache__
 .pytest

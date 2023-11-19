@@ -29,6 +29,7 @@ kinds:
     cleanup-cmd: |
       pkill rip
     volumes:
+      - "./%NAME%/etc.rip:/etc/rip"
       - "%RUNDIR%/var.log.rip:/var/log/rip"
     cap-add:
       - SYS_ADMIN

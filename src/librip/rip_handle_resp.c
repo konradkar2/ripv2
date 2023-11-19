@@ -47,20 +47,13 @@ bool is_net_mask_valid(struct in_addr net_mask_n)
 	return (leading_ones + trailing_zeros) == 32;
 }
 
-inline bool is_metric_valid(uint32_t metric)
-{
-	return metric >= 1 && metric <= INFINITY_METRIC;
-}
+inline bool is_metric_valid(uint32_t metric) { return metric >= 1 && metric <= INFINITY_METRIC; }
 
-static inline void update_metric(uint32_t *metric)
-{
-	*metric = MIN(*metric + 1, INFINITY_METRIC);
-}
+static inline void update_metric(uint32_t *metric) { *metric = MIN(*metric + 1, INFINITY_METRIC); }
 
 bool is_entry_valid(struct rip2_entry *entry)
 {
-	if (!is_unicast_address(entry->ip_address) ||
-	    !is_net_mask_valid(entry->subnet_mask) ||
+	if (!is_unicast_address(entry->ip_address) || !is_net_mask_valid(entry->subnet_mask) ||
 	    !is_metric_valid(entry->metric)) {
 		LOG_ERR("Invalid entry:");
 		rip2_entry_print(entry, stdout);
@@ -70,9 +63,8 @@ bool is_entry_valid(struct rip2_entry *entry)
 	return true;
 }
 
-int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
-		 struct rip2_entry *entry, struct in_addr sender_addr,
-		 int origin_if_index)
+int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db, struct rip2_entry *entry,
+		 struct in_addr sender_addr, int origin_if_index)
 {
 	const struct rip_route_description *old_route = NULL;
 	struct rip_route_description incoming_route   = {0};
@@ -112,15 +104,13 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	return 0;
 }
 
-int handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
-		    struct rip2_entry entries[], size_t n_entry,
+int handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
 		    struct in_addr sender_addr, int origin_if_index)
 {
 	int ret = 0;
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
-		if (handle_entry(route_mngr, db, entry, sender_addr,
-				 origin_if_index)) {
+		if (handle_entry(route_mngr, db, entry, sender_addr, origin_if_index)) {
 			ret = 1;
 		}
 	}

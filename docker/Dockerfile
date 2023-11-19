@@ -18,12 +18,18 @@ RUN apt-get update && apt-get install -yq \
   sudo \
   pip \
   valgrind \
-  pkg-config
+  pkg-config \ 
+  git \
+  cmake 
 
 #lib deps
 RUN apt-get install -yq \
   libnl-3-dev \
   libnl-route-3-dev
+
+RUN git clone --depth 1 --branch 0.2.5 https://github.com/yaml/libyaml.git
+RUN mkdir libyaml/build && cd libyaml/build && cmake .. && make install
+
 
 #FRR
 RUN apt-get install lsb-release -yq
@@ -32,9 +38,8 @@ RUN echo deb '[signed-by=/usr/share/keyrings/frrouting.gpg]' https://deb.frrouti
 RUN sudo apt-get update && sudo apt-get install frr frr-pythontools -yq
 
 #Munet
-RUN pip install munet
+RUN pip install munet 
 
-RUN apt-get install cmake -y
 RUN pip install pytest retry
 
 WORKDIR /workdir/app

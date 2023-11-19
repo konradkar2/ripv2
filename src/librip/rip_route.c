@@ -1,6 +1,5 @@
 #include "rip_route.h"
 #include "logging.h"
-#include "netlink/object.h"
 #include "rip_common.h"
 #include "rip_ipc.h"
 #include "rip_messages.h"

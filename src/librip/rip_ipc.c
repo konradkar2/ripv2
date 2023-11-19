@@ -23,8 +23,7 @@ struct rip_ipc {
 	const char *queue_name;
 };
 
-static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri,
-					      enum rip_ipc_cmd cmd)
+static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri, enum rip_ipc_cmd cmd)
 {
 	for (size_t i = 0; i < ri->cmd_h_len; ++i) {
 		struct r_ipc_cmd_handler *hl = &ri->cmd_h[i];
@@ -45,19 +44,14 @@ void rip_ipc_free(struct rip_ipc *ri)
 	free(ri);
 }
 
-int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[],
-		 size_t len)
+int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[], size_t len)
 {
 	mqd_t fd;
-	struct mq_attr attr = {.mq_curmsgs = 0,
-			       .mq_flags   = 0,
-			       .mq_maxmsg  = 10,
-			       .mq_msgsize = REQ_BUFFER_SIZE};
+	struct mq_attr attr = {.mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = REQ_BUFFER_SIZE};
 	mode_t permission   = QUEUE_PERMISSIONS;
 	const char *q_name  = RIP_DEAMON_QUEUE;
 
-	fd = mq_open(q_name, O_RDONLY | O_CREAT | O_NONBLOCK, &permission,
-		     &attr);
+	fd = mq_open(q_name, O_RDONLY | O_CREAT | O_NONBLOCK, &permission, &attr);
 	if (fd == -1) {
 		LOG_ERR("mq_open(%s) failed: %s", q_name, strerror(errno));
 		return 1;
@@ -91,8 +85,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 
 	cli_q = mq_open(RIP_CLI_QUEUE, O_WRONLY);
 	if (cli_q == -1) {
-		LOG_ERR("mq_open(%s) failed: %s", RIP_CLI_QUEUE,
-			strerror(errno));
+		LOG_ERR("mq_open(%s) failed: %s", RIP_CLI_QUEUE, strerror(errno));
 		return;
 	}
 
@@ -109,8 +102,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 		goto cleanup;
 	}
 
-	buffer_stream =
-	    fmemopen(response->output, sizeof(response->output), "wr");
+	buffer_stream = fmemopen(response->output, sizeof(response->output), "wr");
 
 	if (NULL == buffer_stream) {
 		LOG_ERR("fmemopen");
@@ -121,7 +113,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 			status = r_cmd_status_failed;
 		}
 
-		//needs to be invoked before mq_send to flush the buffer
+		// needs to be invoked before mq_send to flush the buffer
 		fflush(buffer_stream);
 	}
 
@@ -130,8 +122,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	}
 
 	response->cmd_status = status;
-	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response),
-		    0) == -1) {
+	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response), 0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));
 	}
 
@@ -144,18 +135,15 @@ cleanup:
 void cli_rip_ipc_init(struct rip_ipc *ri)
 {
 	mqd_t fd;
-	struct mq_attr attr = {.mq_curmsgs = 0,
-			       .mq_flags   = 0,
-			       .mq_maxmsg  = 10,
-			       .mq_msgsize = sizeof(struct ipc_response)};
+	struct mq_attr attr = {
+	    .mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = sizeof(struct ipc_response)};
 
 	mode_t permission  = QUEUE_PERMISSIONS;
 	const char *q_name = RIP_CLI_QUEUE;
 
 	fd = mq_open(q_name, O_RDONLY | O_CREAT, &permission, &attr);
 	if (fd == -1) {
-		fprintf(stderr, "mq_open(%s) failed: %s", q_name,
-			strerror(errno));
+		fprintf(stderr, "mq_open(%s) failed: %s", q_name, strerror(errno));
 		exit(1);
 	}
 
@@ -163,8 +151,7 @@ void cli_rip_ipc_init(struct rip_ipc *ri)
 	ri->queue_name = q_name;
 }
 
-void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,
-			  struct ipc_response *resp)
+void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request, struct ipc_response *resp)
 {
 	mqd_t deamons_fd;
 
@@ -174,8 +161,7 @@ void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,
 		exit(1);
 	}
 
-	if (mq_send(deamons_fd, (const char *)&request, sizeof(request), 0) <
-	    0) {
+	if (mq_send(deamons_fd, (const char *)&request, sizeof(request), 0) < 0) {
 		printf("(cli): mq_send failed: %s", strerror(errno));
 		exit(1);
 	}
@@ -184,8 +170,7 @@ void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request,
 	struct timespec timeout;
 	clock_gettime(CLOCK_REALTIME, &timeout);
 	timeout.tv_sec += 3;
-	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response),
-			    NULL, &timeout) < 0) {
+	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response), NULL, &timeout) < 0) {
 		printf("(cli): mq_receive failed: %s", strerror(errno));
 		exit(1);
 	}

@@ -9,7 +9,6 @@ typedef struct rip_if_entry {
 	int fd;
 	char if_name[IF_NAMESIZE];
 	int if_index;
-	char if_addr[INET_ADDRSTRLEN];
 } rip_if_entry;
 
 int create_udp_socket(int *fd);
