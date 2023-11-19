@@ -16,6 +16,7 @@ add_executable(tests
     hashmap_test.c
     rip_handle_resp_test.c
     rip_db_test.c
+    parse_rip_config_test.c
 )
 
 add_test(UTILS tests COMMAND tests)
