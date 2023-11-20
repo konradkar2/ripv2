@@ -52,7 +52,7 @@ RUN cd ./src && mkdir build_debug && \
 RUN cd ./src/build_debug/tests && ctest
 RUN cd ./src/build_debug/tests && ctest -T memcheck
   
-#install 
+#install release
 RUN cd ./src && mkdir build_release && \
     cd build_release && cmake -DBUILD_TESTING=OFF ..  && \
     make && make install 

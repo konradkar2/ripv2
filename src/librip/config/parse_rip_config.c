@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,84 +73,158 @@ int extract_str_from_str_str_pair(yaml_document_t *document, yaml_node_pair_t *p
 	return key_not_found;
 }
 
-int parse_rip_interfaces(yaml_document_t *document, yaml_node_item_t item, struct rip_interfaces **out,
-			 size_t *rip_interaces_n)
+int extract_int_from_str_str_pair(yaml_document_t *document, yaml_node_pair_t *pair, const char *key_name, int **out)
 {
-	LOG_TRACE();
+	int ret = 0;
+	char *str;
+
+	int status = extract_str_from_str_str_pair(document, pair, key_name, &str);
+	if (status) {
+		return status;
+	}
+
+	int tmp = 0;
+	if (str_to_int(str, &tmp)) {
+		ret = 1;
+		goto cleanup;
+	}
+
+	*out = malloc(sizeof(int));
+	if (!out) {
+		ret = 1;
+		goto cleanup;
+	}
+
+	**out = tmp;
+cleanup:
+	free(str);
+	return ret;
+}
+
+typedef int (*on_sequence_mapping_pair_cb)(yaml_document_t *document, int sequence_idx, yaml_node_pair_t *mapping_pair,
+					   void *arg);
+typedef int (*set_sequence_length_cb)(size_t sequence_length, void *arg1, void *arg2);
+int parse_sequence_of_mappings(yaml_document_t *document, yaml_node_item_t item, set_sequence_length_cb cb_length,
+			       on_sequence_mapping_pair_cb cb_on_sequence_pair, void *arg1, void *arg2)
+{
 	yaml_node_t *node = NULL;
 	node		  = yaml_document_get_node(document, item);
-	if (node && node->type == YAML_SEQUENCE_NODE) {
+	if (!node || node->type != YAML_SEQUENCE_NODE) {
+		return 1;
+	}
 
-		*rip_interaces_n = sequence_node_length(node);
-		*out		 = CALLOC(*rip_interaces_n * sizeof(struct rip_interfaces));
-		if (!(*out))
-			return 1;
+	size_t sequence_len = sequence_node_length(node);
+	if (cb_length(sequence_len, arg1, arg2)) {
+		return 1;
+	}
 
-		struct rip_interfaces *out_it = *out;
-
-		yaml_node_item_t *item_it;
-		for_each_sequence_node_item(node, item_it)
-		{
-			yaml_node_t *mapping_node = NULL;
-			mapping_node		  = yaml_document_get_node(document, *item_it);
-			if (!mapping_node || mapping_node->type != YAML_MAPPING_NODE) {
-				continue;
-			}
-
-			yaml_node_pair_t *mapping_pair = NULL;
-			for_each_mapping_node_item(mapping_node, mapping_pair)
-			{
-				if (extract_str_from_str_str_pair(document, mapping_pair, "dev", &out_it->dev) == 1) {
-					return 1;
-				}
-			}
-			++out_it;
+	yaml_node_item_t *sequence_item;
+	size_t seq_idx = 0;
+	for_each_sequence_node_item(node, sequence_item)
+	{
+		yaml_node_t *sequence_node = NULL;
+		sequence_node		   = yaml_document_get_node(document, *sequence_item);
+		if (!sequence_node || sequence_node->type != YAML_MAPPING_NODE) {
+			continue;
 		}
+
+		yaml_node_pair_t *sequence_mapping_pair = NULL;
+		for_each_mapping_node_item(sequence_node, sequence_mapping_pair)
+		{
+			if (cb_on_sequence_pair(document, seq_idx, sequence_mapping_pair, arg1)) {
+				return 1;
+			}
+		}
+		++seq_idx;
 	}
 
 	return 0;
 }
 
-int parse_rip_advertised_networks(yaml_document_t *document, yaml_node_item_t item, struct advertised_networks **out,
+int parse_rip_interfaces_length(size_t sequence_length, void *arg1, void *arg2)
+{
+	struct rip_interface **ifcs = arg1;
+	size_t *rip_interaces_n	    = arg2;
+
+	*ifcs = CALLOC(sizeof(struct rip_interface) * sequence_length);
+	if (*ifcs == NULL) {
+		return 1;
+	}
+
+	*rip_interaces_n = sequence_length;
+
+	return 0;
+}
+
+int parse_rip_interfaces_item(yaml_document_t *document, int sequence_idx, yaml_node_pair_t *mapping_pair, void *arg)
+{
+	struct rip_interface **ifcs    = arg;
+	struct rip_interface *ifc_view = *ifcs;
+	assert(ifc_view);
+
+	struct rip_interface *ifc = &ifc_view[sequence_idx];
+
+	if (extract_str_from_str_str_pair(document, mapping_pair, "dev", &ifc->dev) == 1) {
+		return 1;
+	};
+
+	return 0;
+}
+
+int parse_rip_interfaces(yaml_document_t *document, yaml_node_item_t item, struct rip_interface **out,
+			 size_t *rip_interaces_n)
+{
+	if (parse_sequence_of_mappings(document, item, parse_rip_interfaces_length, parse_rip_interfaces_item, out,
+				       rip_interaces_n)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+int parse_rip_advertised_networks_length(size_t sequence_length, void *arg1, void *arg2)
+{
+	struct advertised_network **adv_nets = arg1;
+	size_t *advertised_networks_n	     = arg2;
+
+	*adv_nets = CALLOC(sizeof(struct advertised_network) * sequence_length);
+	if (*adv_nets == NULL) {
+		return 1;
+	}
+
+	*advertised_networks_n = sequence_length;
+
+	return 0;
+}
+
+int parse_rip_advertised_networks_item(yaml_document_t *document, int sequence_idx, yaml_node_pair_t *mapping_pair,
+				       void *arg)
+{
+	struct advertised_network **adv_nets	 = arg;
+	struct advertised_network *adv_nets_view = *adv_nets;
+	assert(adv_nets_view);
+
+	struct advertised_network *net = &adv_nets_view[sequence_idx];
+
+	if (extract_str_from_str_str_pair(document, mapping_pair, "dev", &net->dev) == 1) {
+		return 1;
+	};
+	if (extract_int_from_str_str_pair(document, mapping_pair, "prefix", &net->prefix) == 1) {
+		return 1;
+	}
+	if (extract_str_from_str_str_pair(document, mapping_pair, "address", &net->address) == 1) {
+		return 1;
+	}
+
+	return 0;
+}
+
+int parse_rip_advertised_networks(yaml_document_t *document, yaml_node_item_t item, struct advertised_network **out,
 				  size_t *advertised_networks_n)
 {
-	yaml_node_t *node = NULL;
-	node		  = yaml_document_get_node(document, item);
-	if (node && node->type == YAML_SEQUENCE_NODE) {
-
-		*advertised_networks_n = sequence_node_length(node);
-		*out		       = CALLOC(*advertised_networks_n * sizeof(struct advertised_networks));
-		if (!(*out))
-			return 1;
-
-		struct advertised_networks *out_it = *out;
-
-		yaml_node_item_t *item_it;
-		for_each_sequence_node_item(node, item_it)
-		{
-			yaml_node_t *mapping_node = NULL;
-			mapping_node		  = yaml_document_get_node(document, *item_it);
-			if (!mapping_node || mapping_node->type != YAML_MAPPING_NODE) {
-				continue;
-			}
-
-			yaml_node_pair_t *mapping_pair = NULL;
-			for_each_mapping_node_item(mapping_node, mapping_pair)
-			{
-				if (extract_str_from_str_str_pair(document, mapping_pair, "dev", &out_it->dev) == 1) {
-					return 1;
-				};
-				if (extract_str_from_str_str_pair(document, mapping_pair, "prefix", &out_it->prefix) ==
-				    1) {
-					return 1;
-				}
-				if (extract_str_from_str_str_pair(document, mapping_pair, "address",
-								  &out_it->address) == 1) {
-					return 1;
-				}
-			}
-			++out_it;
-		}
+	if (parse_sequence_of_mappings(document, item, parse_rip_advertised_networks_length,
+				       parse_rip_advertised_networks_item, out, advertised_networks_n)) {
+		return 1;
 	}
 
 	return 0;
@@ -165,7 +240,6 @@ int parse_rip_version(yaml_document_t *document, yaml_node_item_t item, int **ve
 
 	value = yaml_document_get_node(document, item);
 	CHECK_NULL(value);
-	printf("value->type: %d\n", value->type);
 	if (str_to_int((const char *)value->data.scalar.value, *version)) {
 		return 1;
 	}
@@ -174,7 +248,6 @@ int parse_rip_version(yaml_document_t *document, yaml_node_item_t item, int **ve
 
 static int parse_rip_configuration(yaml_document_t *document, yaml_node_t *node, struct rip_configuration *rip_config)
 {
-	LOG_TRACE();
 	yaml_node_t *key, *value;
 	yaml_node_pair_t *pair;
 
@@ -222,16 +295,58 @@ static int parse_rip_configuration(yaml_document_t *document, yaml_node_t *node,
 			}
 		}
 	}
-
-	if (rip_config->version)
-		LOG_INFO("rip_config->version: %d", *rip_config->version);
-
 	return 0;
 }
 
 enum yaml_status { yaml_status_failed = 0, yaml_status_success = 1 };
 
-int read_and_parse_rip_configuration(FILE *file, struct rip_configuration *rip_config)
+int rip_configuration_validate(const struct rip_configuration *rip_config)
+{
+	CHECK_NULL(rip_config);
+	CHECK_NULL(rip_config->version);
+	CHECK_NULL(rip_config->rip_interfaces);
+	for (size_t i = 0; i < rip_config->rip_interfaces_n; ++i) {
+		struct rip_interface *ifc = &rip_config->rip_interfaces[i];
+		CHECK_NULL(ifc->dev);
+	}
+
+	if (rip_config->advertised_networks_n > 0) {
+		for (size_t i = 0; i < rip_config->advertised_networks_n; ++i) {
+			struct advertised_network *net = &rip_config->advertised_networks[i];
+			CHECK_NULL(net->dev);
+			CHECK_NULL(net->prefix);
+			CHECK_NULL(net->address);
+		}
+	}
+
+	return 0;
+}
+
+void rip_configuration_print(const struct rip_configuration *rip_config)
+{
+#define SPACE " "
+#define SPACE2 SPACE SPACE
+
+	LOG_INFO("rip config:");
+	LOG_INFO(SPACE "version: %d", *rip_config->version);
+	LOG_INFO(SPACE "rip_interfaces:");
+	for (size_t i = 0; i < rip_config->rip_interfaces_n; ++i) {
+		struct rip_interface *ifc = &rip_config->rip_interfaces[i];
+		LOG_INFO(SPACE2 "dev: %s", ifc->dev);
+	}
+
+	LOG_INFO(SPACE "advertised_networks:");
+	if (rip_config->advertised_networks_n > 0) {
+		for (size_t i = 0; i < rip_config->advertised_networks_n; ++i) {
+			struct advertised_network *net = &rip_config->advertised_networks[i];
+			LOG_INFO(SPACE2 "address: %s", net->address);
+			LOG_INFO(SPACE2 "prefix: %d", *net->prefix);
+			LOG_INFO(SPACE2 "dev: %s", net->dev);
+		}
+	}
+}
+
+int rip_configuration_read_and_parse(FILE *file, struct rip_configuration *rip_config)
 {
 	int ret = 0;
 	assert(file);

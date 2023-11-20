@@ -25,7 +25,7 @@ REGISTER_TEST(parse_rip_config_test)
 	ASSERT(file);
 
 	struct rip_configuration cfg = {0};
-	ASSERT(0 == read_and_parse_rip_configuration(file, &cfg));
+	ASSERT(0 == rip_configuration_read_and_parse(file, &cfg));
 
 	ASSERT(cfg.version);
 	ASSERT(*cfg.version == 2);
@@ -42,16 +42,18 @@ REGISTER_TEST(parse_rip_config_test)
 	ASSERT(cfg.advertised_networks[0].address);
 	ASSERT(cfg.advertised_networks[0].prefix);
 	ASSERT(strcmp(cfg.advertised_networks[0].dev, "eth1") == 0);
-	ASSERT(strcmp(cfg.advertised_networks[0].prefix, "24") == 0);
+	ASSERT(*cfg.advertised_networks[0].prefix == 24);
 	ASSERT(strcmp(cfg.advertised_networks[0].address, "10.03.40.0") == 0);
 
 	ASSERT(cfg.advertised_networks[1].dev);
 	ASSERT(cfg.advertised_networks[1].address);
 	ASSERT(cfg.advertised_networks[1].prefix);
 	ASSERT(strcmp(cfg.advertised_networks[1].dev, "eth0") == 0);
-	ASSERT(strcmp(cfg.advertised_networks[1].prefix, "25") == 0);
+	ASSERT(*cfg.advertised_networks[1].prefix == 25);
 	ASSERT(strcmp(cfg.advertised_networks[1].address, "10.100.33.0") == 0);
 
+	ASSERT(rip_configuration_validate(&cfg) == 0);
+
 	rip_configuration_cleanup(&cfg);
-    fclose(file);
+	fclose(file);
 }

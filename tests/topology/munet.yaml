@@ -25,7 +25,7 @@ kinds:
       route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1
       touch /var/log/rip/rip.log
       rip >> /var/log/rip/rip.log 2>&1 &
-      tail -F /var/log/rip/rip.log
+      tail -F -n +1 /var/log/rip/rip.log
     cleanup-cmd: |
       pkill rip
     volumes:

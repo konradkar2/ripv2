@@ -58,7 +58,7 @@ class munet_environment:
         munet_ns_dir = "/tmp/test_ns"
         system("rm -rf {0}".format(munet_ns_dir))
         self.munet = run_munet(munet_ns_dir)
-        system("tail -F {0}/r3/var.log.rip/rip.log &".format(munet_ns_dir))
+        system("tail -F -n +1 {0}/r3/var.log.rip/rip.log &".format(munet_ns_dir))
     
         self.r3 = Host("r3", self.munet)
 

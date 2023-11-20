@@ -6,7 +6,7 @@ rip_configuration:
   advertised_networks: 
     - address: "10.03.40.0"
       prefix: 24
+      dev: eth1
     - address: "10.100.33.0"
       prefix: 24
-
-
+      dev: eth0

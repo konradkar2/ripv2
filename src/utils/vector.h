@@ -17,7 +17,7 @@ size_t vector_get_len(const struct vector *vec);
 void *vector_get(struct vector *vec, size_t index);
 ssize_t vector_find(struct vector *vec, void *filter_entry,
 			bool(filter_func)(void *entry, void *filter_entry));
-int vector_add(struct vector *vec, void *element, size_t el_size);
+int vector_add(struct vector *vec, void *element);
 int vector_del(struct vector *vec, size_t idx);
 
 #endif

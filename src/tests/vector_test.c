@@ -19,7 +19,7 @@ REGISTER_TEST(vector_add_and_len_test)
 
 	for (int i = 0; i < VEC_SIZE; ++i) {
 		example_data data = {.a = 'c', .b = i};
-		int res = vector_add(vec, &data, sizeof(example_data));
+		int res = vector_add(vec, &data);
 		ASSERT(res == 0);
 
 		size_t expected_len = i + 1;
@@ -42,11 +42,11 @@ REGISTER_TEST(vector_add)
 	ASSERT(vec);
 
 	example_data data = {.a = 'c', .b = 5};
-	vector_add(vec, &data, sizeof(example_data));
+	vector_add(vec, &data);
 
 	data.a = 'b';
 	data.b = 6;
-	vector_add(vec, &data, sizeof(example_data));
+	vector_add(vec, &data);
 
 	ASSERT(vector_get_len(vec) == 2);
 
@@ -74,11 +74,11 @@ REGISTER_TEST(vector_del)
 	ASSERT(1 == vector_del(vec, 0));
 
 	example_data data0 = {.a = 'c', .b = 5};
-	vector_add(vec, &data0, sizeof(example_data));
+	vector_add(vec, &data0);
 	example_data data1 = {.a = 'd', .b = 6};
-	vector_add(vec, &data1, sizeof(example_data));
+	vector_add(vec, &data1);
 	example_data data2 = {.a = 'e', .b = 7};
-	vector_add(vec, &data2, sizeof(example_data));
+	vector_add(vec, &data2);
 
 	ASSERT(0 == vector_del(vec, 1));
 	ASSERT(2 == vector_get_len(vec));
@@ -103,7 +103,7 @@ REGISTER_TEST(vector_realloc)
 
 	for (size_t i = 0; i < VEC_SIZE; ++i) {
 		example_data data = {.a = 'c', .b = i};
-		int res = vector_add(vec, &data, sizeof(example_data));
+		int res = vector_add(vec, &data);
 		ASSERT(res == 0);
 
 		size_t expected_len = i + 1;
@@ -137,15 +137,15 @@ REGISTER_TEST(vector_get_by_filter)
 	ASSERT(vec);
 
 	example_data data = {.a = 'c', .b = 5};
-	vector_add(vec, &data, sizeof(example_data));
+	vector_add(vec, &data);
 
 	data.a = 'b';
 	data.b = 6;
-	vector_add(vec, &data, sizeof(example_data));
+	vector_add(vec, &data);
 
 	data.a = 'd';
 	data.b = 100;
-	vector_add(vec, &data, sizeof(example_data));
+	vector_add(vec, &data);
 
 	example_data data_filter = {.a = 'b', .b = 6};
 	ssize_t found_idx =

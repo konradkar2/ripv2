@@ -9,6 +9,7 @@
 #include "rip_if.h"
 #include "rip_route.h"
 #include "utils.h"
+#include "utils/vector.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <errno.h>
@@ -22,15 +23,14 @@
 #include <time.h>
 
 #define RIP_PORT 520
-#define POLL_FDS_MAX_LEN 128
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
 
-static void rip_if_entry_print(FILE *output, const rip_if_entry *e)
+static void rip_if_entry_print(FILE *output, const struct rip_ifc *e)
 {
 	fprintf(output, "fd: %d, if_name: %s, if_index : %d\n", e->fd, e->if_name, e->if_index);
 }
 
-static int rip_if_entry_setup_resources(rip_if_entry *if_entry)
+static int rip_if_entry_setup_resources(struct rip_ifc *if_entry)
 {
 	if (create_udp_socket(&if_entry->fd)) {
 		return 1;
@@ -58,8 +58,8 @@ static int setup_resources(struct rip_context *rip_ctx)
 {
 	LOG_INFO("%s", __func__);
 
-	for (size_t i = 0; i < rip_ctx->rip_ifs_count; ++i) {
-		rip_if_entry *entry = &rip_ctx->rip_ifs[i];
+	for (size_t i = 0; i < rip_ctx->rip_ifcs_n; ++i) {
+		struct rip_ifc *entry = &rip_ctx->rip_ifcs[i];
 
 		if (rip_if_entry_setup_resources(entry)) {
 			LOG_ERR("rip_if_entry_setup_resources failed");
@@ -78,7 +78,7 @@ struct msg_buffer {
 
 int rip_handle_io(struct rip_context *rip_ctx, const size_t rip_if_entry_idx)
 {
-	const rip_if_entry *rip_if_e = &rip_ctx->rip_ifs[rip_if_entry_idx];
+	const struct rip_ifc *rip_if_e = &rip_ctx->rip_ifcs[rip_if_entry_idx];
 
 	struct msg_buffer msg_buffer;
 	struct sockaddr_in sender_addr;
@@ -113,32 +113,38 @@ int rip_handle_io(struct rip_context *rip_ctx, const size_t rip_if_entry_idx)
 	return 0;
 }
 
-static void assign_fds_to_pollfds(const struct rip_context *rip_ctx, struct pollfd pollfds[],
-				  const nfds_t pollfds_capacity, nfds_t *actual_pollfds_count)
+static int assign_fds_to_pollfds(const struct rip_context *rip_ctx, struct vector *pollfds_vec)
 {
-	assert("too small pollfds capacity" && pollfds_capacity >= rip_ctx->rip_ifs_count);
 
-	size_t i = 0;
-	for (; i < rip_ctx->rip_ifs_count; ++i) {
-		pollfds[i].fd	  = rip_ctx->rip_ifs[i].fd;
-		pollfds[i].events = POLLIN;
+	for (size_t i = 0; i < rip_ctx->rip_ifcs_n; ++i) {
+		if (vector_add(pollfds_vec, &(struct pollfd){
+						.fd	= rip_ctx->rip_ifcs[i].fd,
+						.events = POLLIN,
+					    })) {
+			return 1;
+		}
 	}
-	pollfds[i++] = (struct pollfd){
-	    .fd	    = rip_route_getfd(rip_ctx->route_mngr),
-	    .events = POLLIN,
-	};
-	pollfds[i++] = (struct pollfd){
-	    .fd	    = rip_ipc_getfd(rip_ctx->ipc_mngr),
-	    .events = POLLIN,
+	if (vector_add(pollfds_vec, &(struct pollfd){
+					.fd	= rip_route_getfd(rip_ctx->route_mngr),
+					.events = POLLIN,
+				    })) {
+		return 1;
 	};
 
-	*actual_pollfds_count = i;
+	if (vector_add(pollfds_vec, &(struct pollfd){
+					.fd	= rip_ipc_getfd(rip_ctx->ipc_mngr),
+					.events = POLLIN,
+				    })) {
+		return 1;
+	}
+
+	return 0;
 }
 
 int rip_if_entry_find_by_fd(const struct rip_context *rip_ctx, const int fd, size_t *rip_ifs_idx)
 {
-	for (size_t i = 0; i < rip_ctx->rip_ifs_count; ++i) {
-		const rip_if_entry *entry = &rip_ctx->rip_ifs[i];
+	for (size_t i = 0; i < rip_ctx->rip_ifcs_n; ++i) {
+		const struct rip_ifc *entry = &rip_ctx->rip_ifcs[i];
 		if (entry->fd == fd) {
 			*rip_ifs_idx = i;
 			return 0;
@@ -159,12 +165,95 @@ static int rip_read_config(struct rip_configuration *rip_cfg)
 		return 1;
 	}
 
-	if (read_and_parse_rip_configuration(config_file, rip_cfg)) {
+	if (rip_configuration_read_and_parse(config_file, rip_cfg)) {
+		LOG_ERR("failed to parse configuration");
+		ret = 1;
+	}
+	if (rip_configuration_validate(rip_cfg)) {
+		LOG_ERR("invalid configuration");
 		ret = 1;
 	}
 
 	fclose(config_file);
 	return ret;
+}
+
+static int rip_assign_ifcs(struct rip_configuration *cfg, struct rip_ifc **ifcs, size_t *ifcs_n)
+{
+	*ifcs = CALLOC(sizeof(struct rip_ifc) * cfg->rip_interfaces_n);
+	if (!(*ifcs)) {
+		return 1;
+	}
+	*ifcs_n = cfg->rip_interfaces_n;
+
+	for (size_t i = 0; i < cfg->rip_interfaces_n; ++i) {
+		struct rip_interface *interface_cfg = &cfg->rip_interfaces[i];
+		struct rip_ifc *ifc		    = &(*ifcs)[i];
+
+		strncpy(ifc->if_name, interface_cfg->dev, IF_NAMESIZE);
+		if (ifc->if_name[0] == '\0') {
+			LOG_ERR("Invalid dev name");
+			return 1;
+		}
+
+		ifc->if_index = if_nametoindex(ifc->if_name);
+		if (ifc->if_index == 0) {
+			LOG_ERR("if_nametoindex failed (%s): %s", ifc->if_name, strerror(errno));
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int rip_handle_events(struct rip_context *rip_ctx)
+{
+	LOG_INFO("Waiting for events...");
+	struct vector *pollfds_vec = NULL;
+
+	while (1) {
+		vector_free(pollfds_vec);
+		pollfds_vec = vector_create(rip_ctx->rip_ifcs_n + 10, sizeof(struct pollfd));
+		if (!pollfds_vec) {
+			return 1;
+		}
+
+		if (assign_fds_to_pollfds(rip_ctx, pollfds_vec)) {
+			return 1;
+		}
+
+		if (-1 == poll(vector_get(pollfds_vec, 0), vector_get_len(pollfds_vec), -1)) {
+			LOG_ERR("poll failed: %s", strerror(errno));
+		}
+
+		for (size_t i = 0; i < vector_get_len(pollfds_vec); ++i) {
+			struct pollfd *pollfd = vector_get(pollfds_vec, i);
+
+			int revents = pollfd->revents;
+			int fd	    = pollfd->fd;
+
+			if (!(revents & POLLIN)) {
+				continue;
+			}
+
+			LOG_INFO("event on fd: %d", fd);
+			size_t rip_ifs_idx = 0;
+			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
+				LOG_INFO("rip route update");
+				rip_route_handle_netlink_io(rip_ctx->route_mngr);
+			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
+				LOG_INFO("rip_ipc_handle_msg");
+				rip_ipc_handle_msg(rip_ctx->ipc_mngr);
+			} else if (!rip_if_entry_find_by_fd(rip_ctx, fd, &rip_ifs_idx)) {
+				rip_handle_io(rip_ctx, rip_ifs_idx);
+			} else {
+				LOG_ERR("Can't dispatch this event, fd: %d, "
+					"revents: %d",
+					fd, revents);
+				return 1;
+			}
+		}
+	}
 }
 
 int rip_begin(struct rip_context *rip_ctx)
@@ -173,6 +262,11 @@ int rip_begin(struct rip_context *rip_ctx)
 
 	if (rip_read_config(&rip_ctx->config)) {
 		LOG_ERR("failed to read configuration");
+		return 1;
+	}
+	rip_configuration_print(&rip_ctx->config);
+
+	if (rip_assign_ifcs(&rip_ctx->config, &rip_ctx->rip_ifcs, &rip_ctx->rip_ifcs_n)) {
 		return 1;
 	}
 
@@ -203,46 +297,5 @@ int rip_begin(struct rip_context *rip_ctx)
 		return 1;
 	}
 
-	LOG_INFO("Waiting for events...");
-
-	struct pollfd pollfds[POLL_FDS_MAX_LEN];
-	MEMSET_ZERO(&pollfds);
-
-	while (1) {
-		nfds_t actual_pollfds_count = 0;
-		assign_fds_to_pollfds(rip_ctx, pollfds, POLL_FDS_MAX_LEN, &actual_pollfds_count);
-		assert("actual_pollfds_count" && actual_pollfds_count > 0);
-
-		if (-1 == poll(pollfds, actual_pollfds_count, -1)) {
-			LOG_ERR("poll failed: %s", strerror(errno));
-		}
-
-		for (nfds_t i = 0; i < actual_pollfds_count; ++i) {
-			int revents = pollfds[i].revents;
-			int fd	    = pollfds[i].fd;
-
-			if (!(revents & POLLIN)) {
-				continue;
-			}
-
-			LOG_INFO("event on fd: %d", fd);
-			size_t rip_ifs_idx = 0;
-			if (rip_route_getfd(rip_ctx->route_mngr) == fd) {
-				LOG_INFO("rip route update");
-				rip_route_handle_netlink_io(rip_ctx->route_mngr);
-			} else if (rip_ipc_getfd(rip_ctx->ipc_mngr) == fd) {
-				LOG_INFO("rip_ipc_handle_msg");
-				rip_ipc_handle_msg(rip_ctx->ipc_mngr);
-			} else if (!rip_if_entry_find_by_fd(rip_ctx, fd, &rip_ifs_idx)) {
-				rip_handle_io(rip_ctx, rip_ifs_idx);
-			} else {
-				LOG_ERR("Can't dispatch this event, fd: %d, "
-					"revents: %d",
-					fd, revents);
-				return 1;
-			}
-		}
-	}
-
-	return 0;
+	return rip_handle_events(rip_ctx);
 }

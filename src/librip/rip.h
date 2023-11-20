@@ -8,8 +8,6 @@
 #include "rip_route.h"
 #include <stddef.h>
 
-#define MAX_RIP_IFS 16
-
 typedef struct {
 	int fd;
 	int interval;
@@ -17,8 +15,8 @@ typedef struct {
 
 struct rip_context {
 	struct rip_configuration config;
-	rip_if_entry rip_ifs[MAX_RIP_IFS];
-	size_t rip_ifs_count;
+	struct rip_ifc *rip_ifcs;
+	size_t rip_ifcs_n;
 	rip_timer t_update;
 	rip_timer t_timeout;
 	rip_timer t_garbage_collection;

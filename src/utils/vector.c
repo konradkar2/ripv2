@@ -63,23 +63,20 @@ inline static int vector_realloc(struct vector *vec, size_t new_capacity)
 	if (new_data == NULL)
 		return 1;
 
-	vec->data	    = new_data;
-	size_t old_capacity = new_capacity - vec->capacity;
-	if (new_capacity > old_capacity) {
-		char *old_cap_boundary =
-		    (char *)vec->data + old_capacity * vec->el_size;
+	vec->data = new_data;
+	if (new_capacity > vec->capacity) {
+		size_t new_items_n     = new_capacity - vec->capacity;
+		char *old_cap_boundary = (char *)vec->data + new_items_n * vec->el_size;
 		memset(old_cap_boundary, 0, // NOLINT
-		       (new_capacity - old_capacity) * vec->el_size);
+		       (new_capacity - new_items_n) * vec->el_size);
 	}
 
 	vec->capacity = new_capacity;
 	return 0;
 }
 
-int vector_add(struct vector *vec, void *element, size_t el_size)
+int vector_add(struct vector *vec, void *element)
 {
-	assert(vec->el_size == el_size);
-
 	if (vec->length == vec->capacity) {
 		int new_capacity = vec->capacity * 2;
 		if (vector_realloc(vec, new_capacity) > 0) {
@@ -89,14 +86,13 @@ int vector_add(struct vector *vec, void *element, size_t el_size)
 
 	char *data = (char *)vec->data;
 	void *dest = data + (vec->length * vec->el_size);
-	memcpy(dest, element, el_size); // NOLINT
+	memcpy(dest, element, vec->el_size); // NOLINT
 	++vec->length;
 
 	return 0;
 }
 
-ssize_t vector_find(struct vector *vec, void *filter_entry,
-		    bool(filter_func)(void *entry, void *filter_entry))
+ssize_t vector_find(struct vector *vec, void *filter_entry, bool(filter_func)(void *entry, void *filter_entry))
 {
 	for (size_t i = 0; i < vector_get_len(vec); ++i) {
 		void *entry = vector_get(vec, i);

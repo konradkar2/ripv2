@@ -5,11 +5,11 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-typedef struct rip_if_entry {
+struct rip_ifc {
 	int fd;
 	char if_name[IF_NAMESIZE];
 	int if_index;
-} rip_if_entry;
+};
 
 int create_udp_socket(int *fd);
 int set_allow_reuse_port(int fd);

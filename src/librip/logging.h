@@ -12,7 +12,7 @@
 
 #define LOG_TRACE()                                                           \
 	do {                                                                   \
-		fprintf(stdout, "%s:%d", __func__, __LINE__);                        \
+		fprintf(stdout, "%s:%d", __FILE__, __LINE__);                        \
 		fprintf(stdout, "\n");                                         \
 		fflush(stdout);                                                \
 	} while (0)
