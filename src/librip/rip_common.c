@@ -22,8 +22,7 @@ void rip_route_description_print(const struct rip_route_description *descr,
 	}
 
 	fprintf(file, "ifi %d, dev %s, ", descr->if_index, if_name);
-	fprintf(file, "rip2_entry [");
 	rip2_entry_print((const struct rip2_entry *)&descr->entry, file);
-	fprintf(file, "]\n");
+	fprintf(file,"\n");
 }
 

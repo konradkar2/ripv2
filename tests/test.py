@@ -89,8 +89,12 @@ def test_simple(munet_env):
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_intermediate(munet_env):
     rip_routes_stdout = munet_env.r3.execute_shell("rip-cli -r").strip()
-    rip_routes = rip_routes_stdout.split('\n')
+    rip_routes = rip_routes_stdout.split('\r\n')
     assert(len(rip_routes) == 3)
+
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.5.0/24, nh 10.0.3.4, metric 3" in rip_routes)
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.4.0/24, nh 10.0.3.4, metric 2" in rip_routes)
+    assert("ifi 2, dev eth0, rfamily_id 2, rtag 512, network 10.0.1.0/24, nh 10.0.2.2, metric 2" in rip_routes)
 
 def remove_last_line_if_empty(lines):
     if lines and not lines[-1].strip():
@@ -100,8 +104,13 @@ def remove_last_line_if_empty(lines):
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_libnl(munet_env):
     nl_routes_stdout = munet_env.r3.execute_shell("rip-cli -n").strip()
-    nl_routes_routes = nl_routes_stdout.split('\n')
+    nl_routes_routes = nl_routes_stdout.split('\r\n')
     #liblns dumping functionality adds extra new line, so remove it
     nl_routes_routes = remove_last_line_if_empty(nl_routes_routes)
+    nl_routes_routes = [s.strip() for s in nl_routes_routes]
+
+    assert("inet 10.0.1.0/24 table main type unicast via 10.0.2.2 dev eth0" in nl_routes_routes)
+    assert("inet 10.0.4.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
+    assert("inet 10.0.5.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
     assert(len(nl_routes_routes) == 3)
 
