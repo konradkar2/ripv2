@@ -12,8 +12,16 @@ struct rip_route_description {
 	uint32_t if_index;
 };
 
+struct rip_event;
+typedef int (*rip_event_cb)(const struct rip_event *);
+
+struct rip_event {
+	int fd;
+	rip_event_cb cb;
+	void *arg1;
+};
+
 int get_prefix_len(struct in_addr subnet_mask);
-void rip_route_description_print(const struct rip_route_description *descr,
-				 FILE *file);
+void rip_route_description_print(const struct rip_route_description *descr, FILE *file);
 
 #endif

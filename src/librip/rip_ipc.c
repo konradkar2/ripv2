@@ -66,10 +66,13 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[], size_t
 }
 int rip_ipc_getfd(struct rip_ipc *ri) { return ri->fd; }
 
-void rip_ipc_handle_msg(struct rip_ipc *ri)
+int rip_ipc_handle_event(const struct rip_event *event)
 {
+	struct rip_ipc *ri = event->arg1;
+
+	int ret = 0;
 	ssize_t n_bytes;
-	mqd_t cli_q;
+	mqd_t cli_q			     = 0;
 	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
 	struct ipc_request *req;
 	struct r_ipc_cmd_handler *hl;
@@ -80,18 +83,21 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	n_bytes = mq_receive(ri->fd, ipc_req_buffer, REQ_BUFFER_SIZE, NULL);
 	if (n_bytes < 0) {
 		LOG_ERR("mq_receive failed: %s", strerror(errno));
-		return;
+		ret = 1;
+		goto cleanup;
 	}
 
 	cli_q = mq_open(RIP_CLI_QUEUE, O_WRONLY);
 	if (cli_q == -1) {
 		LOG_ERR("mq_open(%s) failed: %s", RIP_CLI_QUEUE, strerror(errno));
-		return;
+		ret = 1;
+		goto cleanup;
 	}
 
 	response = CALLOC(sizeof(struct ipc_response));
 	if (!response) {
 		LOG_ERR("calloc failed");
+		ret = 1;
 		goto cleanup;
 	}
 
@@ -99,6 +105,7 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	hl  = find_handler(ri, req->cmd);
 	if (!hl) {
 		LOG_ERR("Handler not found, cmd: %d", req->cmd);
+		ret = 1;
 		goto cleanup;
 	}
 
@@ -124,12 +131,15 @@ void rip_ipc_handle_msg(struct rip_ipc *ri)
 	response->cmd_status = status;
 	if (mq_send(cli_q, (const char *)response, sizeof(struct ipc_response), 0) == -1) {
 		LOG_ERR("mq_send failed: %s", strerror(errno));
+		ret = 1;
 	}
 
 cleanup:
 	free(response);
 	fclose(buffer_stream);
 	mq_close(cli_q);
+
+	return ret;
 }
 
 void cli_rip_ipc_init(struct rip_ipc *ri)

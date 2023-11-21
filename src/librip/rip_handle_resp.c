@@ -76,6 +76,7 @@ int handle_entry(struct rip_route_mngr *route_mngr, struct rip_db *db, struct ri
 
 	update_metric(&entry->metric);
 	if (entry->metric >= INFINITY_METRIC) {
+		rip2_entry_print(entry, stdout);
 		LOG_ERR("Max metric reached");
 		return 0;
 	}

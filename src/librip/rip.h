@@ -26,6 +26,6 @@ struct rip_context {
 };
 
 int rip_begin(struct rip_context *rip_ctx);
-int rip_if_entry_find_by_fd(const struct rip_context *rip_ctx, int fd, size_t *rip_ifs_idx);
+
 
 #endif

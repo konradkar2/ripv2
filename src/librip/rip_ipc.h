@@ -1,6 +1,7 @@
 #ifndef RIP_IPC_H
 #define RIP_IPC_H
 
+#include "rip_common.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -41,13 +42,11 @@ void rip_ipc_free(struct rip_ipc *);
 int rip_ipc_getfd(struct rip_ipc *);
 
 // Deamons functions
-int rip_ipc_init(struct rip_ipc *, struct r_ipc_cmd_handler handlers[],
-		 size_t len);
-void rip_ipc_handle_msg(struct rip_ipc *);
+int rip_ipc_init(struct rip_ipc *, struct r_ipc_cmd_handler handlers[], size_t len);
+int rip_ipc_handle_event(const struct rip_event * event);
 
 // CLI functions
 void cli_rip_ipc_init(struct rip_ipc *);
-void cli_rip_ipc_send_msg(struct rip_ipc *, struct ipc_request request,
-			  struct ipc_response *resp);
+void cli_rip_ipc_send_msg(struct rip_ipc *, struct ipc_request request, struct ipc_response *resp);
 
 #endif

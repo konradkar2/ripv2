@@ -29,8 +29,7 @@ struct rip_route_mngr {
 	struct nl_cache_mngr *mngr;
 };
 
-static void dump_caches(struct rip_route_mngr *rr,
-			struct nl_dump_params *dump_params)
+static void dump_caches(struct rip_route_mngr *rr, struct nl_dump_params *dump_params)
 {
 	struct rtnl_route *filter = rtnl_route_alloc();
 	if (!filter) {
@@ -64,24 +63,19 @@ struct rip_route_mngr *rip_route_alloc_init(void)
 		goto error;
 	}
 
-	ec = nl_cache_mngr_alloc(NULL, NETLINK_ROUTE, NL_AUTO_PROVIDE,
-				 &rr->mngr);
+	ec = nl_cache_mngr_alloc(NULL, NETLINK_ROUTE, NL_AUTO_PROVIDE, &rr->mngr);
 	if (ec < 0) {
 		LOG_ERR("nl_cache_mngr_alloc: %s\n", nl_geterror(ec));
 		goto error;
 	}
 
-	if ((ec = nl_cache_mngr_add(rr->mngr, "route/link", NULL, NULL,
-				    &rr->link_cache)) < 0) {
-		LOG_ERR("nl_cache_mngr_add_cache route/link: %s\n",
-			nl_geterror(ec));
+	if ((ec = nl_cache_mngr_add(rr->mngr, "route/link", NULL, NULL, &rr->link_cache)) < 0) {
+		LOG_ERR("nl_cache_mngr_add_cache route/link: %s\n", nl_geterror(ec));
 		goto error;
 	}
 
-	if ((ec = nl_cache_mngr_add(rr->mngr, "route/route", NULL, NULL,
-				    &rr->route_cache)) < 0) {
-		LOG_ERR("nl_cache_mngr_add_cache route_cache: %s\n",
-			nl_geterror(ec));
+	if ((ec = nl_cache_mngr_add(rr->mngr, "route/route", NULL, NULL, &rr->route_cache)) < 0) {
+		LOG_ERR("nl_cache_mngr_add_cache route_cache: %s\n", nl_geterror(ec));
 		goto error;
 	}
 
@@ -103,22 +97,22 @@ void rip_route_free(struct rip_route_mngr *rr)
 	free(rr);
 }
 
-int rip_route_getfd(struct rip_route_mngr *rr)
-{
-	return nl_cache_mngr_get_fd(rr->mngr);
-}
+int rip_route_getfd(struct rip_route_mngr *rr) { return nl_cache_mngr_get_fd(rr->mngr); }
 
-void rip_route_handle_netlink_io(struct rip_route_mngr *rr)
+int rip_route_handle_event(const struct rip_event *event)
 {
+	struct rip_route_mngr *rr = event->arg1;
+
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {
-		LOG_ERR("nl_cache_mngr_data_ready failed: %s",
-			nl_geterror(err));
+		LOG_ERR("nl_cache_mngr_data_ready failed: %s", nl_geterror(err));
+		return 1;
 	}
+
+	return 0;
 }
 
-static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr,
-			      int nh_if_index)
+static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr, int nh_if_index)
 {
 	rtnl_route_nh_set_gateway(nh, nh_addr);
 	nl_addr_put(nh_addr);
@@ -126,8 +120,7 @@ static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr,
 	rtnl_route_nh_set_weight(nh, 50); // TODO: find out what is it for
 }
 
-static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest,
-			  struct rtnl_nexthop *next_hop, uint8_t metric)
+static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest, struct rtnl_nexthop *next_hop, uint8_t metric)
 {
 	int ec = 0;
 
@@ -152,14 +145,12 @@ static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest,
 	return 0;
 }
 
-static int rip_fill_nl_addr(struct in_addr in_addr, uint8_t prefix_len,
-			    struct nl_addr *nl_addr)
+static int rip_fill_nl_addr(struct in_addr in_addr, uint8_t prefix_len, struct nl_addr *nl_addr)
 {
 	int ec;
 
 	nl_addr_set_family(nl_addr, AF_INET);
-	if ((ec = nl_addr_set_binary_addr(nl_addr, &in_addr, sizeof(in_addr)) <
-		  0)) {
+	if ((ec = nl_addr_set_binary_addr(nl_addr, &in_addr, sizeof(in_addr)) < 0)) {
 		LOG_ERR("nl_addr_set_binary_addr: %s", nl_geterror(ec));
 		return 1;
 	}
@@ -168,10 +159,8 @@ static int rip_fill_nl_addr(struct in_addr in_addr, uint8_t prefix_len,
 	return 0;
 }
 
-static int rip_rtnl_route_create_alloc(struct rtnl_route **route,
-				       struct nl_addr **dest_nl,
-				       struct nl_addr **nexthop_nl_adr,
-				       struct rtnl_nexthop **nexthop_nl)
+static int rip_rtnl_route_create_alloc(struct rtnl_route **route, struct nl_addr **dest_nl,
+				       struct nl_addr **nexthop_nl_adr, struct rtnl_nexthop **nexthop_nl)
 {
 	if (!(*route = rtnl_route_alloc())) {
 		LOG_ERR("rtnl_route_alloc");
@@ -201,23 +190,20 @@ alloc_failed:
 	return 1;
 }
 
-static struct rtnl_route *
-rip_rtnl_route_create(const struct rip_route_description *rd)
+static struct rtnl_route *rip_rtnl_route_create(const struct rip_route_description *rd)
 {
 	struct rtnl_route *route	= NULL;
 	struct nl_addr *dest_nl		= NULL;
 	struct nl_addr *nexthop_nl_addr = NULL;
 	struct rtnl_nexthop *nexthop_nl = NULL;
 
-	if (rip_rtnl_route_create_alloc(&route, &dest_nl, &nexthop_nl_addr,
-					&nexthop_nl) > 0) {
+	if (rip_rtnl_route_create_alloc(&route, &dest_nl, &nexthop_nl_addr, &nexthop_nl) > 0) {
 		LOG_ERR("rip_rtnl_route_create_alloc");
 		return NULL;
 	}
 
 	const struct rip2_entry *entry = &rd->entry;
-	if (rip_fill_nl_addr(entry->ip_address,
-			     get_prefix_len(entry->subnet_mask), dest_nl) > 0) {
+	if (rip_fill_nl_addr(entry->ip_address, get_prefix_len(entry->subnet_mask), dest_nl) > 0) {
 		LOG_ERR("rip_fill_nl_addr");
 		goto fill_error;
 	}
@@ -243,8 +229,7 @@ fill_error:
 	return NULL;
 }
 
-struct rtnl_route *
-rip_route_entry_create(const struct rip_route_description *route_description)
+struct rtnl_route *rip_route_entry_create(const struct rip_route_description *route_description)
 {
 	LOG_INFO("%s", __func__);
 	struct rtnl_route *route = NULL;
@@ -264,8 +249,7 @@ rip_route_entry_create(const struct rip_route_description *route_description)
 	return route;
 }
 
-int rip_route_add_route(struct rip_route_mngr *rr,
-			const struct rip_route_description *route_entry_input)
+int rip_route_add_route(struct rip_route_mngr *rr, const struct rip_route_description *route_entry_input)
 {
 	int ec			 = 0;
 	int ret			 = 0;
@@ -284,10 +268,7 @@ int rip_route_add_route(struct rip_route_mngr *rr,
 	return ret;
 }
 
-void rip_route_print_table(struct rip_route_mngr *ri)
-{
-	rip_route_sprintf_table(stdout, ri);
-}
+void rip_route_print_table(struct rip_route_mngr *ri) { rip_route_sprintf_table(stdout, ri); }
 
 enum r_cmd_status rip_route_sprintf_table(FILE *file, void *data)
 {

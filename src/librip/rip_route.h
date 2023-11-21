@@ -12,7 +12,7 @@ void rip_route_free(struct rip_route_mngr *);
 
 // kernel communication
 int rip_route_getfd(struct rip_route_mngr *);
-void rip_route_handle_netlink_io(struct rip_route_mngr *);
+int rip_route_handle_event(const struct rip_event *);
 
 // routing table manipulation
 int rip_route_add_route(struct rip_route_mngr *, const struct rip_route_description * route_entry_input);
