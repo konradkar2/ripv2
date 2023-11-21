@@ -3,12 +3,11 @@
 #include "logging.h"
 #include "rip_common.h"
 #include "rip_db.h"
+#include "rip_handle_resp.h"
 #include "rip_ipc.h"
 #include "rip_messages.h"
-
-#include "rip_handle_resp.h"
-#include "rip_if.h"
 #include "rip_route.h"
+#include "socket.h"
 #include "utils.h"
 #include "utils/hashmap.h"
 #include "utils/vector.h"
@@ -26,6 +25,8 @@
 
 #define RIP_PORT 520
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
+#define RIP_MULTICAST_ADDR "224.0.0.9"
+#define RIP_UDP_PORT 520
 
 static void rip_if_entry_print(FILE *output, const struct rip_ifc *e)
 {
@@ -34,22 +35,22 @@ static void rip_if_entry_print(FILE *output, const struct rip_ifc *e)
 
 static int rip_if_entry_setup_resources(struct rip_ifc *if_entry)
 {
-	if (create_udp_socket(&if_entry->fd)) {
+	if (socket_create_udp_socket(&if_entry->fd)) {
 		return 1;
 	}
-	if (set_nonblocking(if_entry->fd)) {
+	if (socket_set_nonblocking(if_entry->fd)) {
 		return 1;
 	}
-	if (bind_to_device(if_entry->fd, if_entry->if_name)) {
+	if (socket_bind_to_device(if_entry->fd, if_entry->if_name)) {
 		return 1;
 	}
-	if (set_allow_reuse_port(if_entry->fd)) {
+	if (socket_set_allow_reuse_port(if_entry->fd)) {
 		return 1;
 	}
-	if (bind_port(if_entry->fd)) {
+	if (socket_bind_port(if_entry->fd, RIP_UDP_PORT)) {
 		return 1;
 	}
-	if (join_multicast(if_entry->fd, if_entry->if_index)) {
+	if (socket_join_multicast(if_entry->fd, if_entry->if_index, RIP_MULTICAST_ADDR)) {
 		return 1;
 	}
 

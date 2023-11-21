@@ -2,7 +2,6 @@
 #include "logging.h"
 #include "rip_common.h"
 #include "rip_db.h"
-#include "rip_if.h"
 #include "rip_route.h"
 #include "stdint.h"
 #include "stdio.h"

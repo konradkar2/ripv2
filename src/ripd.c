@@ -1,8 +1,6 @@
 #include "logging.h"
 #include "rip.h"
-#include "rip_if.h"
 #include "utils.h"
-
 #include <errno.h>
 #include <execinfo.h>
 #include <net/if.h>

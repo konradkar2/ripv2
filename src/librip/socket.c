@@ -1,4 +1,3 @@
-#include "rip_if.h"
 #include "logging.h"
 #include "utils.h"
 
@@ -6,15 +5,13 @@
 #include <asm-generic/socket.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define RIP_MULTICAST_ADDR "224.0.0.9"
-#define RIP_UDP_PORT 520
-
-int create_udp_socket(int *fd)
+int socket_create_udp_socket(int *fd)
 {
 	int soc_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (soc_fd < 0) {
@@ -25,7 +22,7 @@ int create_udp_socket(int *fd)
 	return 0;
 }
 
-int set_allow_reuse_port(int fd)
+int socket_set_allow_reuse_port(int fd)
 {
 	if (fd <= 0)
 		return 1;
@@ -41,7 +38,7 @@ int set_allow_reuse_port(int fd)
 	return 0;
 }
 
-int bind_port(int fd)
+int socket_bind_port(int fd, int port)
 {
 	if (fd <= 0)
 		return 1;
@@ -51,7 +48,7 @@ int bind_port(int fd)
 
 	address.sin_family	= AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port	= htons(RIP_UDP_PORT);
+	address.sin_port	= htons(port);
 
 	if (bind(fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
 		LOG_ERR("bind failed (fd: %d): %s", fd, strerror(errno));
@@ -60,7 +57,7 @@ int bind_port(int fd)
 	return 0;
 }
 
-int join_multicast(int fd, int if_index)
+int socket_join_multicast(int fd, int if_index, const char * address)
 {
 	if (fd <= 0)
 		return 1;
@@ -68,7 +65,7 @@ int join_multicast(int fd, int if_index)
 	struct ip_mreqn mreq;
 	MEMSET_ZERO(&mreq);
 
-	mreq.imr_multiaddr.s_addr = inet_addr(RIP_MULTICAST_ADDR);
+	mreq.imr_multiaddr.s_addr = inet_addr(address);
 	mreq.imr_ifindex	  = if_index;
 
 	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq,
@@ -81,7 +78,7 @@ int join_multicast(int fd, int if_index)
 	return 0;
 }
 
-int bind_to_device(int fd, const char if_name[IF_NAMESIZE])
+int socket_bind_to_device(int fd, const char if_name[IF_NAMESIZE])
 {
 	if (fd <= 0)
 		return 1;
@@ -100,7 +97,7 @@ int bind_to_device(int fd, const char if_name[IF_NAMESIZE])
 	return 0;
 }
 
-int set_nonblocking(int fd)
+int socket_set_nonblocking(int fd)
 {
 	if (fd <= 0)
 		return 1;

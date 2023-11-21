@@ -3,15 +3,21 @@
 
 #include "config/parse_rip_config.h"
 #include "rip_db.h"
-#include "rip_if.h"
 #include "rip_ipc.h"
 #include "rip_route.h"
+#include <net/if.h>
 #include <stddef.h>
 
 typedef struct {
 	int fd;
 	int interval;
 } rip_timer;
+
+struct rip_ifc {
+	int fd;
+	char if_name[IF_NAMESIZE];
+	int if_index;
+};
 
 struct rip_context {
 	struct rip_configuration config;

@@ -1,4 +1,5 @@
 #include "test.h"
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <rip_handle_resp.h>
 #include <stdint.h>

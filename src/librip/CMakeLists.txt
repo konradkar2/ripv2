@@ -11,7 +11,7 @@ add_library(librip
         STATIC 
         rip.c
         rip_messages.c
-        rip_if.c
+        socket.c
         rip_handle_resp.c
         rip_route.c
         rip_ipc.c
