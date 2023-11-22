@@ -19,10 +19,9 @@ add_executable(tests
     parse_rip_config_test.c
 )
 
-add_test(UTILS tests COMMAND tests)
+add_test(libriptest tests COMMAND tests)
 
 target_link_libraries(tests
-    utils
     librip
 )
 

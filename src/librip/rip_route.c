@@ -1,9 +1,8 @@
 #include "rip_route.h"
-#include "logging.h"
+#include "utils/logging.h"
 #include "rip_common.h"
 #include "rip_ipc.h"
-#include "rip_messages.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <linux/rtnetlink.h>
@@ -260,6 +259,25 @@ int rip_route_add_route(struct rip_route_mngr *rr, const struct rip_route_descri
 	}
 
 	if ((ec = rtnl_route_add(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
+		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
+		ret = 1;
+	}
+
+	rtnl_route_put(route);
+	return ret;
+}
+
+int rip_route_delete_route(struct rip_route_mngr *rr, const struct rip_route_description *route_entry_input)
+{
+	int ec			 = 0;
+	int ret			 = 0;
+	struct rtnl_route *route = NULL;
+
+	if (!(route = rip_rtnl_route_create(route_entry_input))) {
+		return 1;
+	}
+
+	if ((ec = rtnl_route_delete(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
 		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
 		ret = 1;
 	}

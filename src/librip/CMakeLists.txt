@@ -9,22 +9,24 @@ find_package(yaml REQUIRED)
 
 add_library(librip
         STATIC 
+        utils/config/parse_rip_config.c
+        utils/network/socket.c
+        utils/hashmap.c
+        utils/vector.c
+        utils/timer.c
         rip.c
-        rip_messages.c
-        socket.c
         rip_handle_resp.c
         rip_route.c
         rip_ipc.c
         rip_db.c
         rip_common.c
-        config/parse_rip_config.c
+        rip_update.c
 )
 
 target_link_libraries(librip PRIVATE
         ${LIBNL3_LIBRARIES}
         ${LIBRT}
         yaml
-        utils
 )
 
 target_include_directories(librip PRIVATE

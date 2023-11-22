@@ -17,7 +17,6 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(utils)
 add_subdirectory(librip)
 
 add_executable(rip
@@ -30,7 +29,6 @@ add_executable(rip-cli
 
 target_link_libraries(rip
     librip
-    utils
 )
 
 target_link_libraries(rip-cli

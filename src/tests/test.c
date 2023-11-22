@@ -23,7 +23,7 @@ int run_all_tests(void)
 		}
 	}
 
-	if (ret) {
+	if (failed) {
 		printf("%zu out of %zu tests FAILED\n", failed, num_tests);
 	} else {
 		printf("All of %zu tests PASSED\n", num_tests);

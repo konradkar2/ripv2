@@ -1,6 +1,6 @@
 #include "rip_ipc.h"
-#include "logging.h"
-#include "utils.h"
+#include "utils/logging.h"
+#include "utils/utils.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <mqueue.h>

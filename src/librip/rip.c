@@ -1,15 +1,16 @@
 #include "rip.h"
-#include "config/parse_rip_config.h"
-#include "logging.h"
 #include "rip_common.h"
 #include "rip_db.h"
 #include "rip_handle_resp.h"
 #include "rip_ipc.h"
-#include "rip_messages.h"
 #include "rip_route.h"
-#include "socket.h"
-#include "utils.h"
+#include "rip_update.h"
+#include "utils/config/parse_rip_config.h"
 #include "utils/hashmap.h"
+#include "utils/logging.h"
+#include "utils/network/socket.h"
+#include "utils/timer.h"
+#include "utils/utils.h"
 #include "utils/vector.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
@@ -92,11 +93,12 @@ struct rip_ifc *rip_if_entry_find_by_fd(const struct rip_ifc *entries, size_t en
 	return NULL;
 }
 
-int rip_handle_event(const struct rip_event *event)
+int rip_handle_message_event(const struct rip_event *event)
 {
 	struct rip_context *rip_ctx = event->arg1;
 	const struct rip_ifc *rip_if_e =
 	    rip_if_entry_find_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
+
 	if (!rip_if_e) {
 		BUG();
 	}
@@ -111,21 +113,14 @@ int rip_handle_event(const struct rip_event *event)
 		return 1;
 	}
 
-	char addr_h[INET_ADDRSTRLEN];
-	if (NULL != inet_ntop(AF_INET, &sender_addr.sin_addr, addr_h, INET_ADDRSTRLEN)) {
-		LOG_INFO("Got message from %s on %s interface", addr_h, rip_if_e->if_name);
-	} else {
-		LOG_ERR("got message, but inet_ntop failed: %s", strerror(errno));
-		return 1;
-	}
-
 	// rip_header_print(&msg_buffer.header);
 	nbytes -= sizeof(msg_buffer.header);
 
 	if (msg_buffer.header.command == RIP_CMD_RESPONSE) {
 		const size_t n_entry = nbytes / sizeof(struct rip2_entry);
-		if (handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db, msg_buffer.entries,
-				    n_entry, sender_addr.sin_addr, rip_if_e->if_index)) {
+		if (rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db, msg_buffer.entries,
+					n_entry, sender_addr.sin_addr, rip_if_e->if_index,
+					&rip_ctx->state)) {
 			LOG_ERR("Failed to handle response");
 			return 1;
 		}
@@ -134,29 +129,19 @@ int rip_handle_event(const struct rip_event *event)
 	return 0;
 }
 
-static int assign_fds_to_pollfds(const struct rip_context *rip_ctx, struct vector *pollfds_vec)
+static int assign_fds_to_pollfds(struct hashmap *dispatch_map, struct vector *pollfds_vec)
 {
 
-	for (size_t i = 0; i < rip_ctx->rip_ifcs_n; ++i) {
+	size_t i = 0;
+	void *v_event;
+	while (hashmap_iter(dispatch_map, &i, &v_event)) {
+		struct rip_event *e = v_event;
 		if (vector_add(pollfds_vec, &(struct pollfd){
-						.fd	= rip_ctx->rip_ifcs[i].fd,
+						.fd	= e->fd,
 						.events = POLLIN,
 					    })) {
 			return 1;
 		}
-	}
-	if (vector_add(pollfds_vec, &(struct pollfd){
-					.fd	= rip_route_getfd(rip_ctx->route_mngr),
-					.events = POLLIN,
-				    })) {
-		return 1;
-	};
-
-	if (vector_add(pollfds_vec, &(struct pollfd){
-					.fd	= rip_ipc_getfd(rip_ctx->ipc_mngr),
-					.events = POLLIN,
-				    })) {
-		return 1;
 	}
 
 	return 0;
@@ -241,8 +226,8 @@ struct hashmap *create_event_dispatch_map(struct rip_context *ctx)
 
 	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
 		const struct rip_ifc *entry = &ctx->rip_ifcs[i];
-		if (hashmap_set(
-			map, &(struct rip_event){.fd = entry->fd, .cb = rip_handle_event, ctx})) {
+		if (hashmap_set(map, &(struct rip_event){
+					 .fd = entry->fd, .cb = rip_handle_message_event, ctx})) {
 			goto error;
 		}
 	}
@@ -258,6 +243,12 @@ struct hashmap *create_event_dispatch_map(struct rip_context *ctx)
 						 .arg1 = ctx->route_mngr})) {
 		goto error;
 	}
+
+	// if (hashmap_set(map, &(struct rip_event){.fd   = ctx->t_update.fd,
+	// 					 .cb   = rip_handle_timer_update,
+	// 					 .arg1 = &ctx})) {
+	// 	goto error;
+	// }
 
 	return map;
 
@@ -282,7 +273,7 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 		return 1;
 	}
 
-	if (assign_fds_to_pollfds(rip_ctx, pollfds_vec)) {
+	if (assign_fds_to_pollfds(dispatch_map, pollfds_vec)) {
 		return 1;
 	}
 
@@ -312,52 +303,59 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 			}
 
 			event->cb(event);
+
+			if (rip_ctx->state == rip_state_route_changed) {
+				// do something;
+			}
+			rip_ctx->state = rip_state_idle;
 		}
 	}
 }
 
-int rip_begin(struct rip_context *rip_ctx)
+int rip_begin(struct rip_context *ctx)
 {
 	LOG_INFO("%s", __func__);
 
-	if (rip_read_config(&rip_ctx->config)) {
+	if (rip_read_config(&ctx->config)) {
 		LOG_ERR("failed to read configuration");
 		return 1;
 	}
-	rip_configuration_print(&rip_ctx->config);
+	rip_configuration_print(&ctx->config);
 
-	if (rip_assign_ifcs(&rip_ctx->config, &rip_ctx->rip_ifcs, &rip_ctx->rip_ifcs_n)) {
+	if (rip_assign_ifcs(&ctx->config, &ctx->rip_ifcs, &ctx->rip_ifcs_n)) {
 		return 1;
 	}
 
-	rip_ctx->route_mngr = rip_route_alloc_init();
-	if (!rip_ctx->route_mngr) {
+	ctx->route_mngr = rip_route_alloc_init();
+	if (!ctx->route_mngr) {
 		return 1;
 	}
 
-	rip_ctx->ipc_mngr = rip_ipc_alloc();
-	if (!rip_ctx->ipc_mngr) {
+	ctx->ipc_mngr = rip_ipc_alloc();
+	if (!ctx->ipc_mngr) {
 		return 1;
 	}
 
-	if (rip_db_init(&rip_ctx->rip_db) > 0) {
+	if (rip_db_init(&ctx->rip_db) > 0) {
 		return 1;
 	}
 
 	struct r_ipc_cmd_handler handlers[] = {
-	    {.cmd  = dump_libnl_route_table,
-	     .data = rip_ctx->route_mngr,
-	     .cb   = rip_route_sprintf_table},
-	    {.cmd = dump_rip_routes, .data = &rip_ctx->rip_db, .cb = rip_db_dump}};
+	    {.cmd = dump_libnl_route_table, .data = ctx->route_mngr, .cb = rip_route_sprintf_table},
+	    {.cmd = dump_rip_routes, .data = &ctx->rip_db, .cb = rip_db_dump}};
 
-	if (rip_ipc_init(rip_ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
+	if (rip_ipc_init(ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
 		return 1;
 	}
 
-	if (setup_resources(rip_ctx)) {
+	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 5)) {
+		return 1;
+	}
+
+	if (setup_resources(ctx)) {
 		LOG_ERR("failed to setup_resources");
 		return 1;
 	}
 
-	return rip_handle_events(rip_ctx);
+	return rip_handle_events(ctx);
 }

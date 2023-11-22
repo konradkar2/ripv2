@@ -16,6 +16,7 @@ int rip_route_handle_event(const struct rip_event *);
 
 // routing table manipulation
 int rip_route_add_route(struct rip_route_mngr *, const struct rip_route_description * route_entry_input);
+int rip_route_delete_route(struct rip_route_mngr *, const struct rip_route_description * route_entry_input);
 
 /// helpers
 void rip_route_print_table(struct rip_route_mngr *);

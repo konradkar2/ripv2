@@ -1,4 +1,4 @@
-#include "config/parse_rip_config.h"
+#include "utils/config/parse_rip_config.h"
 #include "test.h"
 #include <assert.h>
 #include <stdio.h>

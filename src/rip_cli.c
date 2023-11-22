@@ -1,4 +1,3 @@
-#include "logging.h"
 #include "rip_ipc.h"
 #include <errno.h>
 #include <getopt.h>
@@ -11,7 +10,7 @@
 
 void sig_handler(int sig_num)
 {
-	LOG_ERR("%s: Got sig %d, exiting...", __func__, sig_num);
+	printf("%s: Got sig %d, exiting...", __func__, sig_num);
 	exit(128 + sig_num);
 }
 

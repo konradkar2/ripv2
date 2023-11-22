@@ -1,6 +1,6 @@
 #include "parse_rip_config.h"
-#include "logging.h"
-#include "utils.h"
+#include "utils/logging.h"
+#include "utils/utils.h"
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>

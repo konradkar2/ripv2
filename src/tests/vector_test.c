@@ -1,5 +1,5 @@
 #include "test.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include <utils/vector.h>
 #include <assert.h>
 
