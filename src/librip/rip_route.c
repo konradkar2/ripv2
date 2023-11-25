@@ -98,9 +98,9 @@ void rip_route_free(struct rip_route_mngr *rr)
 
 int rip_route_getfd(struct rip_route_mngr *rr) { return nl_cache_mngr_get_fd(rr->mngr); }
 
-int rip_route_handle_event(const struct rip_event *event)
+int rip_route_handle_event(const struct event *event)
 {
-	struct rip_route_mngr *rr = event->arg1;
+	struct rip_route_mngr *rr = event->arg;
 
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {

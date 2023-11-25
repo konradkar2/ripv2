@@ -14,6 +14,7 @@ add_library(librip
         utils/hashmap.c
         utils/vector.c
         utils/timer.c
+        utils/event_dispatcher.c
         rip.c
         rip_handle_resp.c
         rip_route.c

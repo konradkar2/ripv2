@@ -66,9 +66,9 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[], size_t
 }
 int rip_ipc_getfd(struct rip_ipc *ri) { return ri->fd; }
 
-int rip_ipc_handle_event(const struct rip_event *event)
+int rip_ipc_handle_event(const struct event *event)
 {
-	struct rip_ipc *ri = event->arg1;
+	struct rip_ipc *ri = event->arg;
 
 	int ret = 0;
 	ssize_t n_bytes;

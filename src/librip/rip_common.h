@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define RIP_CMD_REQUEST 1
 #define RIP_CMD_RESPONSE 2
 #define RIP_2_VERSIN 2
 
@@ -40,14 +41,6 @@ struct rip_route_description {
 	uint32_t if_index;
 };
 
-struct rip_event;
-typedef int (*rip_event_cb)(const struct rip_event *);
-
-struct rip_event {
-	int fd;
-	rip_event_cb cb;
-	void *arg1;
-};
 
 enum rip_state {
 	rip_state_idle,

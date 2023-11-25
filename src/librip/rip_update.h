@@ -2,7 +2,8 @@
 #define RIP_UPDATE_H
 
 #include "rip_common.h"
+#include "utils/event.h"
 
-int rip_handle_timer_update(const struct rip_event * event);
+int rip_handle_t_update(const struct event * event);
 
 #endif

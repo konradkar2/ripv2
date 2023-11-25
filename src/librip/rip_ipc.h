@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "utils/event.h"
 
 enum rip_ipc_cmd {
 	dump_libnl_route_table = 0,
@@ -43,7 +44,7 @@ int rip_ipc_getfd(struct rip_ipc *);
 
 // Deamons functions
 int rip_ipc_init(struct rip_ipc *, struct r_ipc_cmd_handler handlers[], size_t len);
-int rip_ipc_handle_event(const struct rip_event * event);
+int rip_ipc_handle_event(const struct event * event);
 
 // CLI functions
 void cli_rip_ipc_init(struct rip_ipc *);

@@ -45,8 +45,8 @@ int timer_clear(struct timer *t)
 {
 	uint64_t buff;
 	if (-1 == read(t->fd, &buff, sizeof(buff))) {
-		LOG_ERR("read failed: %s", strerror(errno));
-        return 1;
+		LOG_ERR("read failed, fd: %d, %s", t->fd, strerror(errno));
+		return 1;
 	}
 
 	return 0;
