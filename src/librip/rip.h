@@ -20,12 +20,12 @@ struct rip_context {
 	struct rip_configuration config;
 
 	// sockets for receiving multicast traffic
-	struct rip_socket *rip_sockets_rx;
-	size_t rip_sockets_rx_n;
 
-	// sockets for sending multicast traffic
-	struct rip_socket *rip_sockets_tx;
-	size_t rip_sockets_tx_n;
+	struct rip_ifc {
+		struct rip_socket socket_rx;
+		struct rip_socket socket_tx;
+	} *rip_ifcs;
+	size_t rip_ifcs_n;
 
 	struct timer t_update;
 	struct rip_route_mngr *route_mngr;

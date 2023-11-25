@@ -30,7 +30,7 @@
 #define RIP_MULTICAST_ADDR "224.0.0.9"
 #define RIP_UDP_PORT 520
 
-static void rip_if_entry_print(FILE *output, const struct rip_socket *e)
+static void rip_socket_print(FILE *output, const struct rip_socket *e)
 {
 	fprintf(output, "fd: %d, if_name: %s, if_index : %d\n", e->fd, e->if_name, e->if_index);
 }
@@ -59,16 +59,17 @@ static int setup_socket_rx(struct rip_socket *if_entry)
 	return 0;
 }
 
-static int setup_receiving_sockets(struct rip_socket *sockets_rx, size_t sockets_rx_n)
+static int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 {
 	LOG_INFO("%s", __func__);
 
-	for (size_t i = 0; i < sockets_rx_n; ++i) {
-		struct rip_socket *socket = &sockets_rx[i];
+	for (size_t i = 0; i < ifcs_n; ++i) {
+		struct rip_ifc *ifc	     = &ifcs[i];
+		struct rip_socket *socket_rx = &ifc->socket_rx;
 
-		if (setup_socket_rx(socket)) {
+		if (setup_socket_rx(socket_rx)) {
 			LOG_ERR("rip_if_entry_setup_resources failed");
-			rip_if_entry_print(stderr, socket);
+			rip_socket_print(stderr, socket_rx);
 			return 1;
 		}
 	}
@@ -81,13 +82,12 @@ struct msg_buffer {
 	struct rip2_entry entries[500];
 };
 
-struct rip_socket *rip_socket_find_by_fd(const struct rip_socket *sockets, size_t entries_n,
-					 const int fd)
+struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t entries_n, const int fd)
 {
 	for (size_t i = 0; i < entries_n; ++i) {
-		const struct rip_socket *sock = &sockets[i];
-		if (sock->fd == fd) {
-			return (struct rip_socket *)sock;
+		struct rip_ifc *ifc = &ifcs[i];
+		if (ifc->socket_rx.fd == fd) {
+			return &ifc->socket_rx;
 		}
 	}
 
@@ -123,7 +123,7 @@ int rip_handle_message_event(const struct event *event)
 {
 	struct rip_context *rip_ctx = event->arg;
 	const struct rip_socket *socket =
-	    rip_socket_find_by_fd(rip_ctx->rip_sockets_rx, rip_ctx->rip_sockets_rx_n, event->fd);
+	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
 
 	if (!socket) {
 		BUG();
@@ -178,30 +178,41 @@ cleanup:
 	return ret;
 }
 
-static int rip_assign_ifcs_to_sockets(struct rip_configuration *cfg, struct rip_socket **sockets,
-				      size_t *ifcs_n)
+static int rip_assign_ifc_to_socket(struct rip_interface *interface_cfg, struct rip_socket *socket)
 {
-	*sockets = CALLOC(sizeof(struct rip_socket) * cfg->rip_interfaces_n);
-	if (!(*sockets)) {
+	strncpy(socket->if_name, interface_cfg->dev, sizeof(socket->if_name));
+	if (socket->if_name[0] == '\0') {
+		LOG_ERR("Invalid dev name");
 		return 1;
 	}
-	*ifcs_n = cfg->rip_interfaces_n;
+
+	socket->if_index = if_nametoindex(socket->if_name);
+	if (socket->if_index == 0) {
+		LOG_ERR("if_nametoindex failed (%s): %s", socket->if_name, strerror(errno));
+		return 1;
+	}
+
+	return 0;
+}
+
+static int rip_assign_ifcs_to_sockets(struct rip_configuration *cfg, struct rip_ifc **rip_ifcs,
+				      size_t *rip_ifcs_n)
+{
+	*rip_ifcs = CALLOC(sizeof(struct rip_ifc) * cfg->rip_interfaces_n);
+	if (!(*rip_ifcs)) {
+		return 1;
+	}
+	*rip_ifcs_n = cfg->rip_interfaces_n;
 
 	for (size_t i = 0; i < cfg->rip_interfaces_n; ++i) {
 		struct rip_interface *interface_cfg = &cfg->rip_interfaces[i];
-		struct rip_socket *socket	    = &(*sockets)[i];
+		struct rip_ifc *ifc		    = *rip_ifcs;
 
-		strncpy(socket->if_name, interface_cfg->dev, IF_NAMESIZE);
-		if (socket->if_name[0] == '\0') {
-			LOG_ERR("Invalid dev name");
-			return 1;
-		}
+		struct rip_socket *socket_rx = &ifc[i].socket_rx;
+		struct rip_socket *socket_tx = &ifc[i].socket_tx;
 
-		socket->if_index = if_nametoindex(socket->if_name);
-		if (socket->if_index == 0) {
-			LOG_ERR("if_nametoindex failed (%s): %s", socket->if_name, strerror(errno));
-			return 1;
-		}
+		rip_assign_ifc_to_socket(interface_cfg, socket_rx);
+		rip_assign_ifc_to_socket(interface_cfg, socket_tx);
 	}
 
 	return 0;
@@ -214,8 +225,8 @@ int init_event_dispatcher(struct rip_context *ctx)
 		return 1;
 	}
 
-	for (size_t i = 0; i < ctx->rip_sockets_rx_n; ++i) {
-		const struct rip_socket *socket = &ctx->rip_sockets_rx[i];
+	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
+		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_rx;
 		if (event_dispatcher_register(
 			ed,
 			&(struct event){.fd = socket->fd, .cb = rip_handle_message_event, ctx})) {
@@ -272,12 +283,11 @@ int rip_begin(struct rip_context *ctx)
 	}
 	rip_configuration_print(&ctx->config);
 
-	if (rip_assign_ifcs_to_sockets(&ctx->config, &ctx->rip_sockets_rx,
-				       &ctx->rip_sockets_rx_n)) {
+	if (rip_assign_ifcs_to_sockets(&ctx->config, &ctx->rip_ifcs, &ctx->rip_ifcs_n)) {
 		return 1;
 	}
 
-	if (setup_receiving_sockets(ctx->rip_sockets_rx, ctx->rip_sockets_rx_n)) {
+	if (rip_setup_sockets(ctx->rip_ifcs, ctx->rip_ifcs_n)) {
 		LOG_ERR("failed to setup_resources");
 		return 1;
 	}
