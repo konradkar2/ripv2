@@ -18,9 +18,6 @@ struct rip_socket {
 
 struct rip_context {
 	struct rip_configuration config;
-
-	// sockets for receiving multicast traffic
-
 	struct rip_ifc {
 		struct rip_socket socket_rx;
 		struct rip_socket socket_tx;

@@ -9,6 +9,8 @@
 #define RIP_CMD_REQUEST 1
 #define RIP_CMD_RESPONSE 2
 #define RIP_2_VERSIN 2
+#define RIP_MULTICAST_ADDR "224.0.0.9"
+#define RIP_UDP_PORT 520
 
 struct rip_header {
 	uint8_t command;
@@ -25,8 +27,15 @@ struct rip2_entry {
 	uint32_t metric;
 };
 
+struct msg_buffer {
+	struct rip_header header;
+	struct rip2_entry entries[500];
+};
+
 /* converts all the fields to network, except for addresses*/
 void rip2_entry_ntoh(struct rip2_entry *);
+void rip2_entry_hton(struct rip2_entry *);
+
 void rip_header_print(const struct rip_header *);
 void rip2_entry_print(const struct rip2_entry *, FILE *file);
 

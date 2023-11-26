@@ -2,11 +2,11 @@
 #include "utils/logging.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <string.h>
-#include <inttypes.h>
 #include <stdint.h>
+#include <string.h>
 
 int get_prefix_len(struct in_addr subnet_mask)
 {
@@ -15,8 +15,7 @@ int get_prefix_len(struct in_addr subnet_mask)
 	return __builtin_clz(inverted_mask);
 }
 
-void rip_route_description_print(const struct rip_route_description *descr,
-				 FILE *file)
+void rip_route_description_print(const struct rip_route_description *descr, FILE *file)
 {
 	char if_name[IF_NAMESIZE] = {0};
 	if (!if_indextoname(descr->if_index, if_name)) {
@@ -26,17 +25,21 @@ void rip_route_description_print(const struct rip_route_description *descr,
 
 	fprintf(file, "ifi %d, dev %s, ", descr->if_index, if_name);
 	rip2_entry_print((const struct rip2_entry *)&descr->entry, file);
-	fprintf(file,"\n");
+	fprintf(file, "\n");
 }
 
 void rip2_entry_ntoh(struct rip2_entry *r2e)
 {
 	r2e->routing_family_id = ntohs(r2e->routing_family_id);
 	r2e->route_tag	       = ntohs(r2e->routing_family_id);
-	// r2e->ip_address	       = ntohl(r2e->ip_address);
-	// r2e->subnet_mask       = ntohl(r2e->subnet_mask);
-	// r2e->next_hop	       = ntohl(r2e->next_hop);
-	r2e->metric = ntohl(r2e->metric);
+	r2e->metric	       = ntohl(r2e->metric);
+}
+
+void rip2_entry_hton(struct rip2_entry *r2e)
+{
+	r2e->routing_family_id = htons(r2e->routing_family_id);
+	r2e->route_tag	       = htons(r2e->routing_family_id);
+	r2e->metric	       = htonl(r2e->metric);
 }
 
 void rip_header_print(const struct rip_header *r_h)
@@ -63,4 +66,3 @@ void rip2_entry_print(const struct rip2_entry *r2_e, FILE *file)
 	fprintf(file, "nh %s, ", str);
 	fprintf(file, "metric %" PRId8 "", r2_e->metric);
 }
-

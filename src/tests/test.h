@@ -19,7 +19,7 @@ void add_test(test_fixture test);
 		} else {                                                       \
 			printf("assert: " #expr " failed %s:%d\n", __FILE__,   \
 			       __LINE__);                                      \
-			*_test_status = 1;                                     \
+			*test_status = 1;                                     \
 			return;                                                \
 		}                                                              \
 	} while (0)
@@ -33,6 +33,6 @@ void add_test(test_fixture test);
 		test.func = TEST_##TEST_NAME;                                  \
 		add_test(test);                                                \
 	}                                                                      \
-	void TEST_##TEST_NAME(__attribute__((unused)) int *_test_status)
+	void TEST_##TEST_NAME(__attribute__((unused)) int * test_status)
 
 #endif

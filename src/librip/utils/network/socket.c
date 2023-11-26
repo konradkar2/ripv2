@@ -28,10 +28,8 @@ int socket_set_allow_reuse_port(int fd)
 		return 1;
 
 	int yes = 1;
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (char *)&yes,
-		       sizeof(yes)) < 0) {
-		LOG_ERR("SO_REUSEPORT failed (fd: %d): %s,", fd,
-			strerror(errno));
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (char *)&yes, sizeof(yes)) < 0) {
+		LOG_ERR("SO_REUSEPORT failed (fd: %d): %s,", fd, strerror(errno));
 		return 1;
 	}
 
@@ -57,7 +55,7 @@ int socket_bind_port(int fd, int port)
 	return 0;
 }
 
-int socket_join_multicast(int fd, int if_index, const char * address)
+int socket_join_multicast(int fd, int if_index, const char *address)
 {
 	if (fd <= 0)
 		return 1;
@@ -68,10 +66,19 @@ int socket_join_multicast(int fd, int if_index, const char * address)
 	mreq.imr_multiaddr.s_addr = inet_addr(address);
 	mreq.imr_ifindex	  = if_index;
 
-	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq,
-		       sizeof(mreq)) < 0) {
-		LOG_ERR("IP_ADD_MEMBERSHIP failed (fd: %d): %s", fd,
-			strerror(errno));
+	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq)) < 0) {
+		LOG_ERR("IP_ADD_MEMBERSHIP (fd: %d): %s", fd, strerror(errno));
+		return 1;
+	}
+
+	return 0;
+}
+
+int socket_disable_multicast_loopback(int fd)
+{
+	char disable = 0;
+	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&disable, sizeof(disable)) < 0) {
+		LOG_ERR("IP_MULTICAST_LOOP (fd: %d): %s", fd, strerror(errno));
 		return 1;
 	}
 
@@ -88,8 +95,8 @@ int socket_bind_to_device(int fd, const char if_name[IF_NAMESIZE])
 		return 1;
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, if_name,
-		       strnlen(if_name, IF_NAMESIZE)) < 0) {
+	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, if_name, strnlen(if_name, IF_NAMESIZE)) <
+	    0) {
 		LOG_ERR("SO_BINDTODEVICE failed: %s", strerror(errno));
 		return 1;
 	}
@@ -103,8 +110,7 @@ int socket_set_nonblocking(int fd)
 		return 1;
 
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-		LOG_ERR("fcntl F_SETFL,O_NONBLOCK failed : %s",
-			strerror(errno));
+		LOG_ERR("fcntl F_SETFL,O_NONBLOCK failed : %s", strerror(errno));
 		return 1;
 	}
 

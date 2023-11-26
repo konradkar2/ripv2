@@ -27,8 +27,6 @@
 #include <time.h>
 
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
-#define RIP_MULTICAST_ADDR "224.0.0.9"
-#define RIP_UDP_PORT 520
 
 static void rip_socket_print(FILE *output, const struct rip_socket *e)
 {
@@ -59,28 +57,54 @@ static int setup_socket_rx(struct rip_socket *if_entry)
 	return 0;
 }
 
-static int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
+static int setup_socket_tx(struct rip_socket *if_entry)
 {
-	LOG_INFO("%s", __func__);
-
-	for (size_t i = 0; i < ifcs_n; ++i) {
-		struct rip_ifc *ifc	     = &ifcs[i];
-		struct rip_socket *socket_rx = &ifc->socket_rx;
-
-		if (setup_socket_rx(socket_rx)) {
-			LOG_ERR("rip_if_entry_setup_resources failed");
-			rip_socket_print(stderr, socket_rx);
-			return 1;
-		}
+	if (socket_create_udp_socket(&if_entry->fd)) {
+		return 1;
+	}
+	if (socket_bind_to_device(if_entry->fd, if_entry->if_name)) {
+		return 1;
+	}
+	if (socket_set_allow_reuse_port(if_entry->fd)) {
+		return 1;
+	}
+	if (socket_bind_port(if_entry->fd, RIP_UDP_PORT)) {
+		return 1;
+	}
+	if(socket_disable_multicast_loopback(if_entry->fd)) {
+		return 1;
 	}
 
 	return 0;
 }
 
-struct msg_buffer {
-	struct rip_header header;
-	struct rip2_entry entries[500];
-};
+static int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
+{
+	LOG_INFO("%s", __func__);
+
+	for (size_t i = 0; i < ifcs_n; ++i) {
+		struct rip_ifc *ifc = &ifcs[i];
+
+		{
+			struct rip_socket *socket_rx = &ifc->socket_rx;
+			if (setup_socket_rx(socket_rx)) {
+				LOG_ERR("setup_socket_rx");
+				rip_socket_print(stderr, socket_rx);
+				return 1;
+			}
+		}
+		{
+			struct rip_socket *socket_tx = &ifc->socket_tx;
+			if (setup_socket_tx(socket_tx)) {
+				LOG_ERR("setup_socket_tx");
+				rip_socket_print(stderr, socket_tx);
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
 
 struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t entries_n, const int fd)
 {
@@ -314,7 +338,7 @@ int rip_begin(struct rip_context *ctx)
 		return 1;
 	}
 
-	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 5)) {
+	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 30)) {
 		return 1;
 	}
 

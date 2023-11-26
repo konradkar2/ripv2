@@ -23,8 +23,13 @@ struct rip_route_mngr {
 	// Not reusing mngr sock as it adviced
 	// by the libnl to only handle kernel notifications
 	struct nl_sock *requests_sock;
+
+	//owned by mngr
 	struct nl_cache *route_cache;
-	struct nl_cache *link_cache;
+
+	//owned by mngr
+	struct nl_cache *link_cache;	
+
 	struct nl_cache_mngr *mngr;
 };
 
@@ -90,8 +95,6 @@ void rip_route_free(struct rip_route_mngr *rr)
 		return;
 	}
 	nl_cache_mngr_free(rr->mngr);
-	nl_cache_free(rr->route_cache);
-	nl_cache_free(rr->link_cache);
 	nl_socket_free(rr->requests_sock);
 	free(rr);
 }
@@ -114,7 +117,6 @@ int rip_route_handle_event(const struct event *event)
 static void rip_fill_next_hop(struct rtnl_nexthop *nh, struct nl_addr *nh_addr, int nh_if_index)
 {
 	rtnl_route_nh_set_gateway(nh, nh_addr);
-	nl_addr_put(nh_addr);
 	rtnl_route_nh_set_ifindex(nh, nh_if_index);
 	rtnl_route_nh_set_weight(nh, 50); // TODO: find out what is it for
 }
@@ -139,7 +141,6 @@ static int rip_fill_route(struct rtnl_route *route, struct nl_addr *dest, struct
 		LOG_ERR("rtnl_route_set_dst: %s", nl_geterror(ec));
 		return 1;
 	}
-	nl_addr_put(dest);
 
 	return 0;
 }
@@ -217,6 +218,9 @@ static struct rtnl_route *rip_rtnl_route_create(const struct rip_route_descripti
 		LOG_ERR("rip_fill_route");
 		goto fill_error;
 	}
+
+	nl_addr_put(dest_nl);
+	nl_addr_put(nexthop_nl_addr);
 	return route;
 
 fill_error:
@@ -277,7 +281,7 @@ int rip_route_delete_route(struct rip_route_mngr *rr, const struct rip_route_des
 		return 1;
 	}
 
-	if ((ec = rtnl_route_delete(rr->requests_sock, route, NLM_F_EXCL)) < 0) {
+	if ((ec = rtnl_route_delete(rr->requests_sock, route, 0)) < 0) {
 		LOG_ERR("rtnl_route_add: %s", nl_geterror(ec));
 		ret = 1;
 	}
