@@ -18,7 +18,7 @@ struct rip_db *_rip_db_create(void)
 	return db;
 }
 
-void _rip_db_free(struct rip_db *db)
+void rip_db_free(struct rip_db *db)
 {
 	assert(db);
 	rip_db_destroy(db);
@@ -63,5 +63,29 @@ REGISTER_TEST(rip_db_add_test)
 		ASSERT(rip_db_add(db, &el_nexthop) == 0);
 		ASSERT(rip_db_add(db, &el_nexthop) == 1);
 	}
-	_rip_db_free(db);
+
+	{
+		struct rip_route_description el_if_index = el;
+		--el_if_index.if_index;
+		ASSERT(rip_db_add(db, &el_if_index) == 0);
+	}
+	{
+		struct rip_route_description el_ip = el;
+		--el_ip.entry.ip_address.s_addr;
+		ASSERT(rip_db_add(db, &el_ip) == 0);
+		ASSERT(rip_db_add(db, &el_ip) == 1);
+	}
+	{
+		struct rip_route_description el_subnet = el;
+		--el_subnet.entry.subnet_mask.s_addr;
+		ASSERT(rip_db_add(db, &el_subnet) == 0);
+		ASSERT(rip_db_add(db, &el_subnet) == 1);
+	}
+	{
+		struct rip_route_description el_nexthop = el;
+		--el_nexthop.entry.next_hop.s_addr;
+		ASSERT(rip_db_add(db, &el_nexthop) == 0);
+		ASSERT(rip_db_add(db, &el_nexthop) == 1);
+	}
+	rip_db_free(db);
 }

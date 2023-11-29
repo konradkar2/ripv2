@@ -49,12 +49,11 @@ COPY . /workdir/app
 RUN cd ./src && mkdir build_debug && \
     cd build_debug && cmake .. -DBUILD_TESTING=ON && \
     make 
-RUN cd ./src/build_debug/tests && ctest
-RUN cd ./src/build_debug/tests && ctest -T memcheck
   
 #install release
 RUN cd ./src && mkdir build_release && \
     cd build_release && cmake -DBUILD_TESTING=OFF ..  && \
     make && make install 
 
+WORKDIR /workdir/app
 CMD ["bash", "tests/run.sh"]
