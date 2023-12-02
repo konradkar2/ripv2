@@ -1,17 +1,71 @@
 #include "rip_update.h"
 #include "rip.h"
 #include "rip_common.h"
+#include "rip_db.h"
 #include "utils/logging.h"
 #include "utils/timer.h"
 #include "utils/utils.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <stdio.h>
 #include <string.h>
+
+static int rip_send(const struct rip_socket *socket_tx, char *buffer, size_t buffer_size)
+{
+	struct sockaddr_in socket_address;
+	MEMSET_ZERO(&socket_address);
+	socket_address.sin_family = AF_INET;
+	socket_address.sin_port	  = htons(RIP_UDP_PORT);
+	inet_aton(RIP_MULTICAST_ADDR, &socket_address.sin_addr);
+
+	ssize_t sent_bytes = sendto(socket_tx->fd, buffer, buffer_size, 0,
+				    (struct sockaddr *)&socket_address, sizeof(socket_address));
+
+	if (sent_bytes == -1) {
+		LOG_ERR("sendto failed: %s", strerror(errno));
+		return 1;
+	}
+	LOG_INFO("send bytes: %zd", sent_bytes);
+
+	return 0;
+}
+
+enum rip_policy {
+	rip_poliy_split_horizon,
+};
+
+int fill_buffer_with_entries(uint32_t if_index_dest, enum rip_policy policy, struct rip_db *db,
+			     struct msg_buffer *buffer, size_t *n_entries)
+{
+	LOG_INFO("fill_buffer_with_entries");
+
+	size_t written_entries_n = 0;
+	size_t db_iter		 = 0;
+	struct rip_route_description *db_route;
+	while (rip_db_iter(db, &db_iter, &db_route)) {
+		struct rip2_entry *entry_out = &buffer->entries[written_entries_n];
+
+		if (db_route->if_index != if_index_dest) {
+			memcpy(entry_out, &db_route->entry, sizeof(struct rip2_entry));
+			rip2_entry_hton(entry_out);
+			++written_entries_n;
+		} else {
+			if (policy == rip_poliy_split_horizon) {
+				// skip
+				continue;
+			}
+		}
+	}
+
+	*n_entries = written_entries_n;
+
+	return 0;
+}
 
 int rip_send_advertisement(struct rip_context *ctx)
 {
-	(void)ctx;
+	int ret = 0;
 
 	struct msg_buffer buffer;
 	MEMSET_ZERO(&buffer);
@@ -19,32 +73,17 @@ int rip_send_advertisement(struct rip_context *ctx)
 	buffer.header.version = 2;
 	buffer.header.command = RIP_CMD_RESPONSE;
 
-	inet_aton("14.15.51.0", &buffer.entries[0].ip_address);
-	inet_aton("0.0.0.0", &buffer.entries[0].next_hop);
-	inet_aton("255.255.255.0", &buffer.entries[0].subnet_mask);
-	buffer.entries[0].metric	    = 2;
-	buffer.entries[0].routing_family_id = AF_INET;
-	buffer.entries[0].route_tag	    = 100;
-	rip2_entry_hton(&buffer.entries[0]);
+	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
+		const struct rip_socket *socket_tx = &ctx->rip_ifcs[i].socket_tx;
+		size_t n_entries		   = 0;
 
-	struct sockaddr_in socket_address;
-	MEMSET_ZERO(&socket_address);
-	socket_address.sin_family = AF_INET;
-	socket_address.sin_port	  = htons(RIP_UDP_PORT);
-	inet_aton(RIP_MULTICAST_ADDR, &socket_address.sin_addr);
-
-	struct rip_socket *socket_tx = &ctx->rip_ifcs[0].socket_tx;
-	ssize_t sent_bytes	     = sendto(socket_tx->fd, (char *)&buffer,
-					      sizeof(struct rip_header) + sizeof(struct rip2_entry), 0,
-					      (struct sockaddr *)&socket_address, sizeof(socket_address));
-
-	if (sent_bytes == -1) {
-		LOG_ERR("sendto failed: %s", strerror(errno));
-		return 1;
+		fill_buffer_with_entries(socket_tx->if_index, rip_poliy_split_horizon, &ctx->rip_db,
+					 &buffer, &n_entries);
+		ret |= rip_send(socket_tx, (char *)&buffer,
+				sizeof(struct rip_header) + sizeof(struct rip2_entry) * n_entries);
 	}
 
-	LOG_INFO("send bytes: %zd", sent_bytes);
-	return 0;
+	return ret;
 }
 
 int rip_handle_t_update(const struct event *event)

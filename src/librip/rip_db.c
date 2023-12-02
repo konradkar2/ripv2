@@ -117,3 +117,15 @@ enum r_cmd_status rip_db_dump(FILE *file, void *data)
 
 	return r_cmd_status_success;
 }
+
+bool rip_db_iter(struct rip_db *db, size_t *iter, struct rip_route_description **desc)
+{
+	void *el;
+	bool ret = hashmap_iter(db->added_routes, iter, &el);
+	if (ret) {
+		*desc = el;
+		return true;
+	}
+
+	return false;
+}

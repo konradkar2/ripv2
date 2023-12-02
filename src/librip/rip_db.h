@@ -22,6 +22,12 @@ rip_db_get(struct rip_db *, struct rip_route_description *entry);
 
 int rip_db_remove(struct rip_db *, struct rip_route_description *entry);
 
+
+//returns true if item was retrieved
+//wrapper for hashmap iter
+bool rip_db_iter(struct rip_db *, size_t * iter,  struct  rip_route_description ** desc);
+
 enum r_cmd_status rip_db_dump(FILE *file, void *data);
+
 
 #endif
