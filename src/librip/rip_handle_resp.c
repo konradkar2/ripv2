@@ -1,10 +1,10 @@
 #include "rip_handle_resp.h"
-#include "utils/logging.h"
 #include "rip_common.h"
 #include "rip_db.h"
 #include "rip_route.h"
 #include "stdint.h"
 #include "stdio.h"
+#include "utils/logging.h"
 #include "utils/utils.h"
 #include <endian.h>
 #include <netinet/in.h>
@@ -98,6 +98,7 @@ void build_new_route_description(struct rip2_entry *entry, struct in_addr sender
 	memcpy(&out->entry, entry, sizeof(*entry));
 	out->if_index	    = if_index;
 	out->entry.next_hop = sender_addr;
+	out->learned_via    = rip_route_learned_via_rip;
 }
 
 int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,

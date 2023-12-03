@@ -66,3 +66,16 @@ void rip2_entry_print(const struct rip2_entry *r2_e, FILE *file)
 	fprintf(file, "nh %s, ", str);
 	fprintf(file, "metric %" PRId8 "", r2_e->metric);
 }
+
+int prefix_len_to_subnet(size_t prefix_len, struct in_addr *out)
+{
+	if (prefix_len > 32) {
+		LOG_ERR("Invalid prefix length: %zu", prefix_len);
+		return 1; // Failure
+	}
+
+	uint32_t mask = (0xFFFFFFFF << (32 - prefix_len)) & 0xFFFFFFFF;
+	out->s_addr   = htonl(mask);
+
+	return 0;
+}

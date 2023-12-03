@@ -23,9 +23,13 @@ def run_munet(ns_path):
 
 
 class Host:
-    def __init__(self, name: str, munet):
+    def __init__(self, name: str, munet, address : str):
         self.name = name
         self.munet = munet
+        self.address = address
+
+    def to_string(self):
+        return "name: {0}, address: {1}".format(self.name, self.address)
 
     def execute_shell(self, cmd: str, timeout: int = 5) -> str:
         self.munet.sendline("{0} sh {1}".format(self.name, cmd))
@@ -36,20 +40,19 @@ class Host:
         return '\n'.join(raw_lines[1:])
 
 
-def has_connectivity(host: Host, address: str, retries: int = 4, sleep: float = 1):
+def has_connectivity(hostA: Host, hostB: Host, retries: int = 4, sleep: float = 1):
     for i in range(retries):
-        ping_stdout = host.execute_shell("ping {0} -c 5".format(address))
-        if "64 bytes from {0}".format(address) in ping_stdout:
+        ping_stdout = hostA.execute_shell("ping {0} -c 2 -w 1".format(hostB.address))
+        if "64 bytes from {0}".format(hostB.address) in ping_stdout:
             return True
         time.sleep(1)
 
-    print("No connectivity between host {0} and {1}".format(host.name, address))
+    print("No connectivity between host {0} and {1}".format(hostA.to_string(), hostB.to_string()))
     return False
 
 
-def wait_for_frr(r4: Host):
-    r6_address = "10.0.5.6"
-    if not has_connectivity(r4, r6_address):
+def wait_for_frr(r4: Host, r6: Host):
+    if not has_connectivity(r4, r6):
         raise Exception("FRR did not converge")
 
 
@@ -60,13 +63,15 @@ class munet_environment:
         self.munet = run_munet(munet_ns_dir)
         system("tail -F -n +1 {0}/r3/var.log.rip/rip.log &".format(munet_ns_dir))
     
-        self.r3 = Host("r3", self.munet)
-
-        r4 = Host("r4", self.munet)
-        wait_for_frr(r4)
+        self.r1 = Host("r1", self.munet, "10.0.1.1")
+        self.r3 = Host("r3", self.munet, "10.0.3.3")
+        self.r4 = Host("r4", self.munet, "10.0.3.4")
+        self.r5 = Host("r5", self.munet, "10.0.5.5")
+        self.r6 = Host("r6", self.munet, "10.0.5.6")
+        wait_for_frr(self.r4, self.r6)
         time.sleep(1)
 
-        if not has_connectivity(self.r3, "10.0.3.4"):
+        if not has_connectivity(self.r3, self.r4):
             raise Exception("somehow r3 can't reach r4")
 
         time.sleep(1)
@@ -113,4 +118,12 @@ def test_contains_advertised_routes_libnl(munet_env):
     assert("inet 10.0.4.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
     assert("inet 10.0.5.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
     assert(len(nl_routes_routes) == 3)
+
+@retry(AssertionError, tries=10, delay=5.0)
+def test_r1_reaches_r6(munet_env):
+    assert has_connectivity(munet_env.r1, munet_env.r6)
+
+@retry(AssertionError, tries=10, delay=5.0)
+def test_r1_reaches_r5(munet_env):
+    assert has_connectivity(munet_env.r1, munet_env.r5)
 

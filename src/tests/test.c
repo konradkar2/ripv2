@@ -1,5 +1,7 @@
 #include "test.h"
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 #define MAX_TESTS 1024
 test_fixture all_tests[MAX_TESTS];
@@ -38,4 +40,22 @@ void add_test(test_fixture test)
 
 	all_tests[num_tests] = test;
 	num_tests++;
+}
+
+int str_eq_n(char *expected, char *actual, size_t len)
+{
+	if (strncmp(expected, actual, len) == 0) {
+		return 0;
+	}
+	printf("expected: %s, actual %s \n", expected, actual);
+	return 1;
+}
+
+int str_eq(char *expected, char *actual)
+{
+	if (strcmp(expected, actual) == 0) {
+		return 0;
+	}
+	printf("expected: %s, actual %s \n", expected, actual);
+	return 1;
 }

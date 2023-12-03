@@ -18,6 +18,7 @@ add_executable(tests
     rip_db_test.c
     route_test.c
     parse_rip_config_test.c
+    rip_common_test.c
 )
 
 add_test(libriptest tests COMMAND tests)

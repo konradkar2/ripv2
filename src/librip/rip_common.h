@@ -42,14 +42,18 @@ void rip2_entry_print(const struct rip2_entry *, FILE *file);
 static_assert(sizeof(struct rip_header) == 4, "");
 static_assert(sizeof(struct rip2_entry) == 20, "");
 
+enum rip_route_learned_via {
+	rip_route_learned_via_conf,
+	rip_route_learned_via_rip,
+};
+
 // Aggregate type for lookup
-// Check rip_db.c for which field is used for lookup,
-// and cannot be modified
+// Check rip_db.c for which field is used for lookup and cannot be modified
 struct rip_route_description {
 	struct rip2_entry entry;
 	uint32_t if_index;
+	enum rip_route_learned_via learned_via;
 };
-
 
 enum rip_state {
 	rip_state_idle,
@@ -57,6 +61,7 @@ enum rip_state {
 };
 
 int get_prefix_len(struct in_addr subnet_mask);
+int prefix_len_to_subnet(size_t prefix_len, struct in_addr * out);
 void rip_route_description_print(const struct rip_route_description *descr, FILE *file);
 
 #endif

@@ -71,7 +71,7 @@ static int setup_socket_tx(struct rip_socket *if_entry)
 	if (socket_bind_port(if_entry->fd, RIP_UDP_PORT)) {
 		return 1;
 	}
-	if(socket_disable_multicast_loopback(if_entry->fd)) {
+	if (socket_disable_multicast_loopback(if_entry->fd)) {
 		return 1;
 	}
 
@@ -296,6 +296,30 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 
 	return 0;
 }
+
+// static int add_advertised_networks_to_db(struct rip_db *db, const struct rip_configuration *conf)
+// {
+// 	(void)db;
+// 	for (size_t i = 0; i < conf->advertised_networks_n; ++i) {
+// 		const struct advertised_network *adv_network = &conf->advertised_networks[i];
+
+// 		struct rip_route_description desc;
+// 		MEMSET_ZERO(&desc);
+// 		desc.learned_via = rip_route_learned_via_conf,
+// 		desc.if_index	 = if_nametoindex(adv_network->dev);
+// 		if (desc.if_index == 0) {
+// 			LOG_ERR("if_nametoindex failed (%s): %s", adv_network->dev,
+// 				strerror(errno));
+// 			return 1;
+// 		}
+// 		if(1 != inet_pton(AF_INET, adv_network->address, &desc.entry.ip_address.s_addr)){
+// 			LOG_ERR("inet_pto: %s", strerror(errno));
+// 			return 1;
+// 		}
+
+// 	}
+// 	return 0;
+// }
 
 int rip_begin(struct rip_context *ctx)
 {
