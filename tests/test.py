@@ -64,6 +64,7 @@ class munet_environment:
         system("tail -F -n +1 {0}/r3/var.log.rip/rip.log &".format(munet_ns_dir))
     
         self.r1 = Host("r1", self.munet, "10.0.1.1")
+        self.r2 = Host("r2", self.munet, "10.0.2.2")
         self.r3 = Host("r3", self.munet, "10.0.3.3")
         self.r4 = Host("r4", self.munet, "10.0.3.4")
         self.r5 = Host("r5", self.munet, "10.0.5.5")
@@ -92,14 +93,23 @@ def test_simple(munet_env):
     assert 1 == 1
 
 @retry(AssertionError, tries=5, delay=5.0)
-def test_contains_advertised_routes_intermediate(munet_env):
+def test_contains_advertised_routes_learned(munet_env):
     rip_routes_stdout = munet_env.r3.execute_shell("rip-cli -r").strip()
     rip_routes = rip_routes_stdout.split('\r\n')
-    assert(len(rip_routes) == 3)
+    assert(len(rip_routes) == 5) # 3 learned, 2 static
 
     assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.5.0/24, nh 10.0.3.4, metric 3" in rip_routes)
     assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.4.0/24, nh 10.0.3.4, metric 2" in rip_routes)
     assert("ifi 2, dev eth0, rfamily_id 2, rtag 512, network 10.0.1.0/24, nh 10.0.2.2, metric 2" in rip_routes)
+
+@retry(AssertionError, tries=5, delay=5.0)
+def test_contains_advertised_routes_static(munet_env):
+    rip_routes_stdout = munet_env.r3.execute_shell("rip-cli -r").strip()
+    rip_routes = rip_routes_stdout.split('\r\n')
+    assert(len(rip_routes) == 5) # 3 learned, 2 static
+
+    assert("ifi 2, dev eth0, rfamily_id 2, rtag 10, network 10.0.2.0/24, nh 0.0.0.0, metric 1" in rip_routes)
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 10, network 10.0.3.0/24, nh 0.0.0.0, metric 1" in rip_routes)
 
 def remove_last_line_if_empty(lines):
     if lines and not lines[-1].strip():
@@ -127,3 +137,10 @@ def test_r1_reaches_r6(munet_env):
 def test_r1_reaches_r5(munet_env):
     assert has_connectivity(munet_env.r1, munet_env.r5)
 
+@retry(AssertionError, tries=10, delay=5.0)
+def test_r2_reaches_r5(munet_env):
+    assert has_connectivity(munet_env.r2, munet_env.r5)
+
+@retry(AssertionError, tries=10, delay=5.0)
+def test_r2_reaches_r4(munet_env):
+    assert has_connectivity(munet_env.r2, munet_env.r4)

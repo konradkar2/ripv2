@@ -4,9 +4,9 @@ rip_configuration:
     - dev: eth0
     - dev: eth1
   advertised_networks: 
-    - address: "10.03.40.0"
-      prefix: 24
-      dev: eth1
-    - address: "10.100.33.0"
+    - address: "10.0.2.3"
       prefix: 24
       dev: eth0
+    - address: "10.0.3.3"
+      prefix: 24
+      dev: eth1
