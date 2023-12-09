@@ -20,10 +20,14 @@ struct rip_configuration {
 	size_t advertised_networks_n;
 };
 
+int rip_read_config(const char * filename, struct rip_configuration *rip_cfg);
+void rip_configuration_destroy(struct rip_configuration *rip_config);
+void rip_configuration_print(const struct rip_configuration * rip_config);
+
+
+//testing
 // caller should close the file
 int rip_configuration_read_and_parse(FILE *file, struct rip_configuration *rip_config);
 int rip_configuration_validate(const struct rip_configuration * rip_config);
-void rip_configuration_print(const struct rip_configuration * rip_config);
-void rip_configuration_cleanup(struct rip_configuration *rip_config);
 
 #endif

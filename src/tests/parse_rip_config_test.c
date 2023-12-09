@@ -54,6 +54,6 @@ REGISTER_TEST(parse_rip_config_test)
 
 	ASSERT(rip_configuration_validate(&cfg) == 0);
 
-	rip_configuration_cleanup(&cfg);
+	rip_configuration_destroy(&cfg);
 	fclose(file);
 }

@@ -377,7 +377,7 @@ cleanup:
 	return ret;
 }
 
-void rip_configuration_cleanup(struct rip_configuration *rip_config)
+void rip_configuration_destroy(struct rip_configuration *rip_config)
 {
 	if (!rip_config)
 		return;
@@ -394,4 +394,31 @@ void rip_configuration_cleanup(struct rip_configuration *rip_config)
 		free(rip_config->rip_interfaces[i].dev);
 	}
 	free(rip_config->rip_interfaces);
+}
+
+int rip_read_config(const char * filename, struct rip_configuration *rip_cfg)
+{
+	int ret		  = 0;
+	FILE *config_file = NULL;
+
+	config_file = fopen(filename, "r");
+	if (!config_file) {
+		LOG_ERR("fopen %s: %s", filename, strerror(errno));
+		ret = 1;
+		goto cleanup;
+	}
+
+	if (rip_configuration_read_and_parse(config_file, rip_cfg)) {
+		LOG_ERR("failed to parse configuration");
+		ret = 1;
+		goto cleanup;
+	}
+	if (rip_configuration_validate(rip_cfg)) {
+		LOG_ERR("invalid configuration");
+		ret = 1;
+		goto cleanup;
+	}
+cleanup:
+	fclose(config_file);
+	return ret;
 }

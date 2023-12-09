@@ -1,8 +1,8 @@
 #include "rip.h"
 #include "rip_common.h"
 #include "rip_db.h"
-#include "rip_handle_resp.h"
 #include "rip_ipc.h"
+#include "rip_recv.h"
 #include "rip_route.h"
 #include "rip_update.h"
 #include "utils/config/parse_rip_config.h"
@@ -106,102 +106,6 @@ static int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 	return 0;
 }
 
-struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t entries_n, const int fd)
-{
-	for (size_t i = 0; i < entries_n; ++i) {
-		struct rip_ifc *ifc = &ifcs[i];
-		if (ifc->socket_rx.fd == fd) {
-			return &ifc->socket_rx;
-		}
-	}
-
-	return NULL;
-}
-
-int rip_receive_messages(int fd, struct msg_buffer *buff, struct in_addr *sender_address,
-			 size_t *bytes)
-{
-	struct sockaddr_in sa_in;
-	MEMSET_ZERO(&sa_in);
-	socklen_t sender_addr_len = sizeof(sa_in);
-
-	ssize_t nbytes =
-	    recvfrom(fd, buff, sizeof(*buff), 0, (struct sockaddr *)&sa_in, &sender_addr_len);
-	if (nbytes < 0) {
-		LOG_ERR("recvfrom failed: %s", strerror(errno));
-		return 1;
-	}
-
-	sender_address->s_addr = sa_in.sin_addr.s_addr;
-	*bytes		       = nbytes;
-
-	return 0;
-}
-
-size_t calculate_entries_count(size_t payload_size_bytes)
-{
-	return (payload_size_bytes - sizeof(struct rip_header)) / sizeof(struct rip2_entry);
-}
-
-int rip_handle_message_event(const struct event *event)
-{
-	struct rip_context *rip_ctx = event->arg;
-	const struct rip_socket *socket =
-	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
-
-	if (!socket) {
-		BUG();
-	}
-
-	struct msg_buffer msg_buffer;
-	struct in_addr sender;
-	size_t n_bytes;
-	if (rip_receive_messages(socket->fd, &msg_buffer, &sender, &n_bytes)) {
-		return 1;
-	}
-
-	switch (msg_buffer.header.command) {
-	case RIP_CMD_RESPONSE:
-		return rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
-					   msg_buffer.entries, calculate_entries_count(n_bytes),
-					   sender, socket->if_index, &rip_ctx->state);
-	case RIP_CMD_REQUEST:
-		LOG_ERR("RIP_CMD_REQUEST: unimplemented");
-		return 1;
-		break;
-	default:
-		LOG_ERR("Unsupported rip command: %d", msg_buffer.header.command);
-		return 1;
-	}
-}
-
-static int rip_read_config(struct rip_configuration *rip_cfg)
-{
-	int ret		  = 0;
-	FILE *config_file = NULL;
-
-	config_file = fopen(RIP_CONFIG_FILENAME, "r");
-	if (!config_file) {
-		LOG_ERR("fopen %s: %s", RIP_CONFIG_FILENAME, strerror(errno));
-		ret = 1;
-		goto cleanup;
-	}
-
-	if (rip_configuration_read_and_parse(config_file, rip_cfg)) {
-		LOG_ERR("failed to parse configuration");
-		ret = 1;
-		goto cleanup;
-	}
-	if (rip_configuration_validate(rip_cfg)) {
-		LOG_ERR("invalid configuration");
-		ret = 1;
-		goto cleanup;
-	}
-cleanup:
-	fclose(config_file);
-	return ret;
-}
-
 static int rip_assign_ifc_to_socket(struct rip_interface *interface_cfg, struct rip_socket *socket)
 {
 	strncpy(socket->if_name, interface_cfg->dev, sizeof(socket->if_name));
@@ -289,7 +193,7 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 		}
 
 		if (rip_ctx->state == rip_state_route_changed) {
-			// do something;
+			LOG_INFO("State changed");
 		}
 		rip_ctx->state = rip_state_idle;
 	}
@@ -297,35 +201,58 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 	return 0;
 }
 
-// static int add_advertised_networks_to_db(struct rip_db *db, const struct rip_configuration *conf)
-// {
-// 	(void)db;
-// 	for (size_t i = 0; i < conf->advertised_networks_n; ++i) {
-// 		const struct advertised_network *adv_network = &conf->advertised_networks[i];
+static int add_advertised_network_to_db(struct rip_db *db,
+					const struct advertised_network *adv_network)
+{
+	struct rip_route_description desc;
+	MEMSET_ZERO(&desc);
 
-// 		struct rip_route_description desc;
-// 		MEMSET_ZERO(&desc);
-// 		desc.learned_via = rip_route_learned_via_conf,
-// 		desc.if_index	 = if_nametoindex(adv_network->dev);
-// 		if (desc.if_index == 0) {
-// 			LOG_ERR("if_nametoindex failed (%s): %s", adv_network->dev,
-// 				strerror(errno));
-// 			return 1;
-// 		}
-// 		if(1 != inet_pton(AF_INET, adv_network->address, &desc.entry.ip_address.s_addr)){
-// 			LOG_ERR("inet_pto: %s", strerror(errno));
-// 			return 1;
-// 		}
+	desc.learned_via = rip_route_learned_via_conf,
+	desc.if_index	 = if_nametoindex(adv_network->dev);
+	if (desc.if_index == 0) {
+		LOG_ERR("if_nametoindex failed, dev: %s, errno %s", adv_network->dev,
+			strerror(errno));
+		return 1;
+	}
 
-// 	}
-// 	return 0;
-// }
+	struct rip2_entry *entry = &desc.entry;
+	if (1 != inet_pton(AF_INET, adv_network->address, &entry->ip_address.s_addr)) {
+		LOG_ERR("inet_pton: address: %s, errno: %s", adv_network->address, strerror(errno));
+		return 1;
+	}
+	if (prefix_len_to_subnet(*adv_network->prefix, &entry->subnet_mask)) {
+		return 1;
+	}
+
+	entry->ip_address.s_addr = entry->ip_address.s_addr & entry->subnet_mask.s_addr;
+	entry->next_hop.s_addr	 = 0;
+	entry->routing_family_id = AF_INET;
+	entry->route_tag	 = 10; // arbitrary number
+	entry->metric		 = 1;
+
+	if (rip_db_add(db, &desc)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static int add_advertised_networks_to_db(struct rip_db *db, const struct rip_configuration *conf)
+{
+	for (size_t i = 0; i < conf->advertised_networks_n; ++i) {
+		const struct advertised_network *adv_network = &conf->advertised_networks[i];
+		if (add_advertised_network_to_db(db, adv_network)) {
+			return 1;
+		}
+	}
+	return 0;
+}
 
 int rip_begin(struct rip_context *ctx)
 {
 	LOG_INFO("%s", __func__);
 
-	if (rip_read_config(&ctx->config)) {
+	if (rip_read_config(RIP_CONFIG_FILENAME, &ctx->config)) {
 		LOG_ERR("failed to read configuration");
 		return 1;
 	}
@@ -351,6 +278,9 @@ int rip_begin(struct rip_context *ctx)
 	}
 
 	if (rip_db_init(&ctx->rip_db) > 0) {
+		return 1;
+	}
+	if (add_advertised_networks_to_db(&ctx->rip_db, &ctx->config)) {
 		return 1;
 	}
 

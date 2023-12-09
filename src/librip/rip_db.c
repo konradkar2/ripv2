@@ -72,18 +72,16 @@ void rip_db_destroy(struct rip_db *db)
 int rip_db_add(struct rip_db *db, struct rip_route_description *entry)
 {
 	if (NULL != rip_db_get(db, entry)) {
-		LOG_ERR("rip_db_contains: element already added");
+		LOG_ERR("element already added");
+		rip_route_description_print(entry, stdout);
 		return 1;
 	}
 
 	if (hashmap_set(db->added_routes, entry)) {
-		LOG_ERR("rip_db_add: hashmap_set");
+		LOG_ERR("ashmap_set, oom: %d", hashmap_oom(db->added_routes));
 		return 1;
 	}
-	if (hashmap_oom(db->added_routes)) {
-		LOG_ERR("hashmap_oom");
-		return 1;
-	}
+
 	return 0;
 }
 

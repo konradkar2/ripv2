@@ -1,4 +1,4 @@
-#include "rip_handle_resp.h"
+#include "rip_recv.h"
 #include "rip_common.h"
 #include "rip_db.h"
 #include "rip_route.h"
@@ -7,6 +7,7 @@
 #include "utils/logging.h"
 #include "utils/utils.h"
 #include <endian.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,37 +15,6 @@
 #include <sys/types.h>
 
 #define INFINITY_METRIC 16
-
-bool is_unicast_address(struct in_addr address_n)
-{
-	uint32_t address  = ntohl(address_n.s_addr);
-	const uint8_t msb = address >> 24;
-
-	/*A few checks just for now */
-	if (msb == 0 /*net 0*/) {
-		return false;
-	} else if (msb == 127 /*loopback*/) {
-		return false;
-	} else if (msb >= 224 /*multicast etc*/) {
-		return false;
-	}
-	return true;
-}
-
-bool is_net_mask_valid(struct in_addr net_mask_n)
-{
-
-	uint32_t net_mask = ntohl(net_mask_n.s_addr);
-	if (net_mask == 0 || net_mask == 0xFFFFFFFF) {
-		return false;
-	}
-
-	size_t trailing_zeros	  = __builtin_ctz(net_mask);
-	uint32_t net_mask_flipped = ~net_mask;
-	size_t leading_ones	  = __builtin_clz(net_mask_flipped);
-
-	return (leading_ones + trailing_zeros) == 32;
-}
 
 inline bool is_metric_valid(uint32_t metric) { return metric >= 1 && metric <= INFINITY_METRIC; }
 
@@ -63,7 +33,7 @@ bool is_entry_valid(struct rip2_entry *entry)
 }
 
 int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *db,
-			      struct rip_route_description *new_route)
+			      struct rip_route_description *new_route, enum rip_state *state)
 {
 	if (rip_route_add_route(route_mngr, new_route) > 0) {
 		return 1;
@@ -73,6 +43,7 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 		return 1;
 	}
 
+	*state = rip_state_route_changed;
 	return 0;
 }
 
@@ -122,7 +93,7 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	if (old_route) {
 		return handle_new_and_old_route(route_mngr, db, old_route, &incoming_route, state);
 	} else {
-		return handle_non_existing_route(route_mngr, db, &incoming_route);
+		return handle_non_existing_route(route_mngr, db, &incoming_route, state);
 	}
 }
 
@@ -140,4 +111,74 @@ int rip_handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	}
 
 	return ret;
+}
+
+static int rip_recvfrom(int fd, struct msg_buffer *buff, struct in_addr *sender_address,
+			size_t *bytes)
+{
+	struct sockaddr_in sa_in;
+	MEMSET_ZERO(&sa_in);
+	socklen_t sender_addr_len = sizeof(sa_in);
+
+	ssize_t nbytes =
+	    recvfrom(fd, buff, sizeof(*buff), 0, (struct sockaddr *)&sa_in, &sender_addr_len);
+	if (nbytes < 0) {
+		LOG_ERR("recvfrom failed: %s", strerror(errno));
+		return 1;
+	}
+
+	sender_address->s_addr = sa_in.sin_addr.s_addr;
+	*bytes		       = nbytes;
+
+	return 0;
+}
+
+static size_t calculate_entries_count(size_t payload_size_bytes)
+{
+	return (payload_size_bytes - sizeof(struct rip_header)) / sizeof(struct rip2_entry);
+}
+
+static struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t entries_n,
+						   const int fd)
+{
+	for (size_t i = 0; i < entries_n; ++i) {
+		struct rip_ifc *ifc = &ifcs[i];
+		if (ifc->socket_rx.fd == fd) {
+			return &ifc->socket_rx;
+		}
+	}
+
+	return NULL;
+}
+
+int rip_handle_message_event(const struct event *event)
+{
+	struct rip_context *rip_ctx = event->arg;
+	const struct rip_socket *socket =
+	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
+
+	if (!socket) {
+		BUG();
+	}
+
+	struct msg_buffer msg_buffer;
+	struct in_addr sender;
+	size_t n_bytes;
+	if (rip_recvfrom(socket->fd, &msg_buffer, &sender, &n_bytes)) {
+		return 1;
+	}
+
+	switch (msg_buffer.header.command) {
+	case RIP_CMD_RESPONSE:
+		return rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
+					   msg_buffer.entries, calculate_entries_count(n_bytes),
+					   sender, socket->if_index, &rip_ctx->state);
+	case RIP_CMD_REQUEST:
+		LOG_ERR("RIP_CMD_REQUEST: unimplemented");
+		return 1;
+		break;
+	default:
+		LOG_ERR("Unsupported rip command: %d", msg_buffer.header.command);
+		return 1;
+	}
 }

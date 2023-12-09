@@ -71,11 +71,42 @@ int prefix_len_to_subnet(size_t prefix_len, struct in_addr *out)
 {
 	if (prefix_len > 32) {
 		LOG_ERR("Invalid prefix length: %zu", prefix_len);
-		return 1; // Failure
+		return 1;
 	}
 
 	uint32_t mask = (0xFFFFFFFF << (32 - prefix_len)) & 0xFFFFFFFF;
 	out->s_addr   = htonl(mask);
 
 	return 0;
+}
+
+bool is_unicast_address(struct in_addr address_n)
+{
+	uint32_t address  = ntohl(address_n.s_addr);
+	const uint8_t msb = address >> 24;
+
+	/*A few checks just for now */
+	if (msb == 0 /*net 0*/) {
+		return false;
+	} else if (msb == 127 /*loopback*/) {
+		return false;
+	} else if (msb >= 224 /*multicast etc*/) {
+		return false;
+	}
+	return true;
+}
+
+bool is_net_mask_valid(struct in_addr net_mask_n)
+{
+
+	uint32_t net_mask = ntohl(net_mask_n.s_addr);
+	if (net_mask == 0 || net_mask == 0xFFFFFFFF) {
+		return false;
+	}
+
+	size_t trailing_zeros	  = __builtin_ctz(net_mask);
+	uint32_t net_mask_flipped = ~net_mask;
+	size_t leading_ones	  = __builtin_clz(net_mask_flipped);
+
+	return (leading_ones + trailing_zeros) == 32;
 }

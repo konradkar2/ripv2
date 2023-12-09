@@ -1,7 +1,7 @@
 #include "test.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <rip_handle_resp.h>
+#include <rip_recv.h>
 #include <stdint.h>
 
 struct in_addr my_pton(const char *addr_p)
