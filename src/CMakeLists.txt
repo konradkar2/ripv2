@@ -6,14 +6,11 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -Wpedantic -Wunused -Wcast-align -fsanitize=undefined")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(BUILD_TESTING "" OFF)
-message(STATUS "BUILD_TESTING: " ${BUILD_TESTING})
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
-if(BUILD_TESTING)
-    set(CMAKE_BUILD_TYPE "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     message(STATUS "Adding debug flags to targets")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0")
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     add_subdirectory(tests)
 endif()
 
