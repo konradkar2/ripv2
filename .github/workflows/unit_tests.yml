@@ -23,8 +23,6 @@ jobs:
     - name: Install deps
       run: sudo apt-get update && sudo apt install -y valgrind libnl-3-dev libnl-route-3-dev libyaml-dev
 
-    -name: Install 
-
     - name: Configure CMake
       run: cmake -B ${{env.SRC_DIR}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
