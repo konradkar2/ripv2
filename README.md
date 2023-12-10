@@ -1,5 +1,5 @@
 # RIPv2
-
+![Unit tests](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
 ## Overview
 This project is a RIPv2 implementation based on RFC 2453. It provides a dynamic routing solution for small to medium-sized networks, focusing on essential features outlined in the RFC.
 
