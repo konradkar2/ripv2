@@ -45,15 +45,15 @@ RUN pip install pytest retry
 WORKDIR /workdir/app
 COPY . /workdir/app
 
-#run tests
-RUN cd ./src && mkdir build_debug && \
-    cd build_debug && cmake .. -DBUILD_TESTING=ON && \
-    make 
+#build tests
+RUN rm -rf build_debug
+RUN cmake -B build_debug -DCMAKE_BUILD_TYPE=DEBUG
+RUN cmake --build build_debug
   
 #install release
-RUN cd ./src && mkdir build_release && \
-    cd build_release && cmake -DBUILD_TESTING=OFF ..  && \
-    make && make install 
+RUN cmake -B build
+RUN cmake --build build
+RUN cmake --install build
 
 WORKDIR /workdir/app
 CMD ["bash", "tests/run.sh"]

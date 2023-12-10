@@ -1,13 +1,9 @@
 #/bin/bash
 
 set -e
-cwd=$(pwd)
 
 #run unit tests
-cd ./src/build_debug/tests
-ctest --verbose
-ctest -T memcheck --verbose
-cd $cwd
+ctest --test-dir build_debug/src/tests -T memcheck
 
 #run topology tests
 cd ./tests/topology

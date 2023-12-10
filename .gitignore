@@ -1,8 +1,11 @@
 venv
 .vscode
-build
+build*
 src/build
 src/build*
 .cache
 __pycache__
 .pytest
+Testing/
+build_debug/
+
