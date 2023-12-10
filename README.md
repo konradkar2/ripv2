@@ -30,8 +30,9 @@ Ensure the following dependencies are installed:
 ### Production
 To build the project do following
 ```
-cd src && mkdir build && cd build
-cmake .. && make install
+cmake -B build
+cmake --build build
+cmake --install build
 ```
 To run it, simply put the config.yaml into /etc/rip/ directory
 #### Example Configuration
@@ -53,9 +54,9 @@ rip_configuration:
 ### Unit testing
 To build and run the test do following
 ```
-cd src && mkdir build_testing && cd build_testing
-cmake -DBUILD_TESTING=ON .. && make && cd tests
-sudo ctest -T memcheck
+cmake -B build_debug -DCMAKE_BUILD_TYPE=DEBUG
+cmake --build build_debug
+sudo ctest --test-dir build_debug/src/tests -T memcheck
 ```
 ### Integration tests
 To run the integration tests run buildnrun.sh script. This will build a docker image, and launch unit/integration tests.
