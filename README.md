@@ -1,5 +1,6 @@
 # RIPv2
 ![Unit tests](https://github.com/konradkar2/ripv2/actions/workflows/unit_tests.yml/badge.svg)
+![Unit tests](https://github.com/konradkar2/ripv2/actions/workflows/docker-image.yml/badge.svg)
 ## Overview
 This project is a RIPv2 implementation based on RFC 2453. It provides a dynamic routing solution for small to medium-sized networks, focusing on essential features outlined in the RFC.
 
