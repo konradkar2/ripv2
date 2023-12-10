@@ -38,16 +38,15 @@ struct ipc_response {
 struct rip_ipc;
 
 // Common functions
-struct rip_ipc *rip_ipc_alloc(void);
 void rip_ipc_free(struct rip_ipc *);
 int rip_ipc_getfd(struct rip_ipc *);
 
 // Deamons functions
-int rip_ipc_init(struct rip_ipc *, struct r_ipc_cmd_handler handlers[], size_t len);
+struct rip_ipc * rip_ipc_alloc_init(struct r_ipc_cmd_handler handlers[], size_t len);
 int rip_ipc_handle_event(const struct event * event);
 
 // CLI functions
-void cli_rip_ipc_init(struct rip_ipc *);
+struct rip_ipc * cli_rip_ipc_alloc_init(void);
 void cli_rip_ipc_send_msg(struct rip_ipc *, struct ipc_request request, struct ipc_response *resp);
 
 #endif

@@ -26,10 +26,10 @@ int timer_init(struct timer *timer)
 	return 0;
 }
 
-int timer_start_interval(struct timer *t, int interval_s)
+int timer_start_interval(struct timer *t, int interval_s, int value_s)
 {
 	struct timespec interval = (struct timespec){.tv_sec = interval_s};
-	struct timespec value	 = (struct timespec){.tv_sec = interval_s};
+	struct timespec value	 = (struct timespec){.tv_sec = value_s};
 	struct itimerspec timerspec =
 	    (struct itimerspec){.it_interval = interval, .it_value = value};
 

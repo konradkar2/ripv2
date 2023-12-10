@@ -50,11 +50,10 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	signal(SIGINT, sig_handler);
 
-	struct rip_ipc *rip_ipc = rip_ipc_alloc();
+	struct rip_ipc *rip_ipc = cli_rip_ipc_alloc_init();
 	if (!rip_ipc) {
 		return 1;
 	}
-	cli_rip_ipc_init(rip_ipc);
 
 	for (;;) {
 		int c, optidx = 0;

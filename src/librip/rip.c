@@ -272,12 +272,7 @@ int rip_begin(struct rip_context *ctx)
 		return 1;
 	}
 
-	ctx->ipc_mngr = rip_ipc_alloc();
-	if (!ctx->ipc_mngr) {
-		return 1;
-	}
-
-	if (rip_db_init(&ctx->rip_db) > 0) {
+	if (rip_db_init(&ctx->rip_db)) {
 		return 1;
 	}
 	if (add_advertised_networks_to_db(&ctx->rip_db, &ctx->config)) {
@@ -288,11 +283,12 @@ int rip_begin(struct rip_context *ctx)
 	    {.cmd = dump_libnl_route_table, .data = ctx->route_mngr, .cb = rip_route_sprintf_table},
 	    {.cmd = dump_rip_routes, .data = &ctx->rip_db, .cb = rip_db_dump}};
 
-	if (rip_ipc_init(ctx->ipc_mngr, handlers, ARRAY_LEN(handlers))) {
+	ctx->ipc_mngr = rip_ipc_alloc_init(handlers, ARRAY_LEN(handlers));
+	if (!ctx->ipc_mngr) {
 		return 1;
 	}
 
-	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 30)) {
+	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 30, 10)) {
 		return 1;
 	}
 

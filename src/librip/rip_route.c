@@ -47,7 +47,7 @@ static void dump_caches(struct rip_route_mngr *rr, struct nl_dump_params *dump_p
 
 struct rip_route_mngr *rip_route_alloc_init(void)
 {
-	struct rip_route_mngr *rr;
+	struct rip_route_mngr *rr = NULL;
 	int ec;
 
 	rr = CALLOC(sizeof(struct rip_route_mngr));

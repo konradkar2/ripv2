@@ -34,7 +34,7 @@ static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri, enum rip
 	return NULL;
 }
 
-struct rip_ipc *rip_ipc_alloc(void) { return CALLOC(sizeof(struct rip_ipc)); }
+static struct rip_ipc *rip_ipc_alloc(void) { return CALLOC(sizeof(struct rip_ipc)); }
 void rip_ipc_free(struct rip_ipc *ri)
 {
 	if (ri->fd > 0) {
@@ -44,17 +44,25 @@ void rip_ipc_free(struct rip_ipc *ri)
 	free(ri);
 }
 
-int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[], size_t len)
+struct rip_ipc *rip_ipc_alloc_init(struct r_ipc_cmd_handler handlers[], size_t len)
 {
+	struct rip_ipc *ri = NULL;
 	mqd_t fd;
-	struct mq_attr attr = {.mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = REQ_BUFFER_SIZE};
-	mode_t permission   = QUEUE_PERMISSIONS;
-	const char *q_name  = RIP_DEAMON_QUEUE;
+	struct mq_attr attr = {
+	    .mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = REQ_BUFFER_SIZE};
+	mode_t permission  = QUEUE_PERMISSIONS;
+	const char *q_name = RIP_DEAMON_QUEUE;
+
+	ri = rip_ipc_alloc();
+	if (!ri) {
+		return NULL;
+	}
 
 	fd = mq_open(q_name, O_RDONLY | O_CREAT | O_NONBLOCK, &permission, &attr);
 	if (fd == -1) {
 		LOG_ERR("mq_open(%s) failed: %s", q_name, strerror(errno));
-		return 1;
+		rip_ipc_free(ri);
+		return NULL;
 	}
 
 	ri->fd	       = fd;
@@ -62,7 +70,7 @@ int rip_ipc_init(struct rip_ipc *ri, struct r_ipc_cmd_handler handlers[], size_t
 	ri->cmd_h_len  = len;
 	ri->queue_name = q_name;
 
-	return 0;
+	return ri;
 }
 int rip_ipc_getfd(struct rip_ipc *ri) { return ri->fd; }
 
@@ -142,14 +150,23 @@ cleanup:
 	return ret;
 }
 
-void cli_rip_ipc_init(struct rip_ipc *ri)
+struct rip_ipc *cli_rip_ipc_alloc_init(void)
 {
+	struct rip_ipc *ri = NULL;
 	mqd_t fd;
-	struct mq_attr attr = {
-	    .mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = sizeof(struct ipc_response)};
+	struct mq_attr attr = {.mq_curmsgs = 0,
+			       .mq_flags   = 0,
+			       .mq_maxmsg  = 10,
+			       .mq_msgsize = sizeof(struct ipc_response)};
 
 	mode_t permission  = QUEUE_PERMISSIONS;
 	const char *q_name = RIP_CLI_QUEUE;
+
+	ri = rip_ipc_alloc();
+	if (!ri) {
+		LOG_ERR("rip_ipc_alloc");
+		exit(1);
+	}
 
 	fd = mq_open(q_name, O_RDONLY | O_CREAT, &permission, &attr);
 	if (fd == -1) {
@@ -159,6 +176,8 @@ void cli_rip_ipc_init(struct rip_ipc *ri)
 
 	ri->fd	       = fd;
 	ri->queue_name = q_name;
+
+	return ri;
 }
 
 void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request, struct ipc_response *resp)
@@ -180,7 +199,8 @@ void cli_rip_ipc_send_msg(struct rip_ipc *ri, struct ipc_request request, struct
 	struct timespec timeout;
 	clock_gettime(CLOCK_REALTIME, &timeout);
 	timeout.tv_sec += 3;
-	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response), NULL, &timeout) < 0) {
+	if (mq_timedreceive(ri->fd, (char *)resp, sizeof(struct ipc_response), NULL, &timeout) <
+	    0) {
 		printf("(cli): mq_receive failed: %s", strerror(errno));
 		exit(1);
 	}
