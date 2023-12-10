@@ -5,7 +5,6 @@ project(librip VERSION 1.0)
 find_package(PkgConfig REQUIRED)
 find_library(LIBRT rt REQUIRED)
 pkg_check_modules(LIBNL3 REQUIRED libnl-3.0 libnl-route-3.0 )
-find_package(yaml REQUIRED)
 
 add_library(librip
         STATIC 
