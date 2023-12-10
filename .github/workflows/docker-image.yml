@@ -15,4 +15,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: sudo ./buildnrun.sh
+      run: docker build -t ripv2 -f docker/Dockerfile
+    - name: Run unit/integration tests
+      run: docker run -it --privileged -e DISPLAY --name ripv2_container -d ripv2
+    - name: Wait for the result
+      run: docker wait ripv2_container
+    - name: Display logs
+      run: docker logs ripv2_container
