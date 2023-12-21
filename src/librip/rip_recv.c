@@ -1,3 +1,4 @@
+#include "rip.h"
 #include "rip_recv.h"
 #include "rip_common.h"
 #include "rip_db.h"
@@ -13,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-
 #define INFINITY_METRIC 16
 
 inline bool is_metric_valid(uint32_t metric) { return metric >= 1 && metric <= INFINITY_METRIC; }
@@ -47,7 +47,7 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 	return 0;
 }
 
-int handle_new_and_old_route(struct rip_route_mngr *route_mngr, struct rip_db *db,
+int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
 			     struct rip_route_description *old_route,
 			     struct rip_route_description *new_route, enum rip_state *state)
 {
@@ -63,7 +63,7 @@ int handle_new_and_old_route(struct rip_route_mngr *route_mngr, struct rip_db *d
 	return 0;
 }
 
-void build_new_route_description(struct rip2_entry *entry, struct in_addr sender_addr, int if_index,
+void build_route_description(struct rip2_entry *entry, struct in_addr sender_addr, int if_index,
 				 struct rip_route_description *out)
 {
 	memcpy(&out->entry, entry, sizeof(*entry));
@@ -87,11 +87,11 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 
 	update_metric(&entry->metric);
 
-	build_new_route_description(entry, sender_addr, if_index, &incoming_route);
+	build_route_description(entry, sender_addr, if_index, &incoming_route);
 	old_route = (struct rip_route_description *)rip_db_get(db, &incoming_route);
 
 	if (old_route) {
-		return handle_new_and_old_route(route_mngr, db, old_route, &incoming_route, state);
+		return handle_route_update(route_mngr, db, old_route, &incoming_route, state);
 	} else {
 		return handle_non_existing_route(route_mngr, db, &incoming_route, state);
 	}

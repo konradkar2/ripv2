@@ -1,7 +1,6 @@
 #ifndef RIP_IPC_H
 #define RIP_IPC_H
 
-#include "rip_common.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>

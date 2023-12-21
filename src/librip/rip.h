@@ -10,18 +10,9 @@
 #include <net/if.h>
 #include <stddef.h>
 
-struct rip_socket {
-	int fd;
-	char if_name[IF_NAMESIZE];
-	int if_index;
-};
-
 struct rip_context {
 	struct rip_configuration config;
-	struct rip_ifc {
-		struct rip_socket socket_rx;
-		struct rip_socket socket_tx;
-	} *rip_ifcs;
+	struct rip_ifc *rip_ifcs;
 	size_t rip_ifcs_n;
 
 	struct timer t_update;

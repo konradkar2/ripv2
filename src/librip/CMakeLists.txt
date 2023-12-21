@@ -21,6 +21,7 @@ add_library(librip
         rip_db.c
         rip_common.c
         rip_update.c
+        rip_socket.c
 )
 
 target_link_libraries(librip PRIVATE

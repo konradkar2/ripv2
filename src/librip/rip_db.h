@@ -5,7 +5,6 @@
 #include "rip_ipc.h"
 #include <netinet/in.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <utils/hashmap.h>
 
 struct rip_db {

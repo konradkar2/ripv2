@@ -3,9 +3,6 @@
 #include "rip_ipc.h"
 #include "utils/hashmap.h"
 #include "utils/logging.h"
-#include "utils/utils.h"
-#include <assert.h>
-#include <errno.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdio.h>

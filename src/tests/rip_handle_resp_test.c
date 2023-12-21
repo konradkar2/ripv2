@@ -1,8 +1,9 @@
+#include "rip_common.h"
 #include "test.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <rip_recv.h>
-#include <stdint.h>
+#include <assert.h>
 
 struct in_addr my_pton(const char *addr_p)
 {

@@ -8,7 +8,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
-#include <stdio.h>
 #include <string.h>
 
 static int rip_send(const struct rip_socket *socket_tx, char *buffer, size_t buffer_size)
