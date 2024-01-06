@@ -1,8 +1,9 @@
-#include "rip.h"
 #include "rip_recv.h"
+#include "rip.h"
 #include "rip_common.h"
 #include "rip_db.h"
 #include "rip_route.h"
+#include "rip_update.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "utils/logging.h"
@@ -48,8 +49,8 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 }
 
 int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
-			     struct rip_route_description *old_route,
-			     struct rip_route_description *new_route, enum rip_state *state)
+			struct rip_route_description *old_route,
+			struct rip_route_description *new_route, enum rip_state *state)
 {
 	(void)route_mngr;
 	(void)db;
@@ -64,7 +65,7 @@ int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
 }
 
 void build_route_description(struct rip2_entry *entry, struct in_addr sender_addr, int if_index,
-				 struct rip_route_description *out)
+			     struct rip_route_description *out)
 {
 	memcpy(&out->entry, entry, sizeof(*entry));
 	out->if_index	    = if_index;
@@ -168,15 +169,15 @@ int rip_handle_message_event(const struct event *event)
 		return 1;
 	}
 
+	const size_t n_entries = calculate_entries_count(n_bytes);
 	switch (msg_buffer.header.command) {
 	case RIP_CMD_RESPONSE:
 		return rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
-					   msg_buffer.entries, calculate_entries_count(n_bytes),
-					   sender, socket->if_index, &rip_ctx->state);
+					   msg_buffer.entries, n_entries, sender, socket->if_index,
+					   &rip_ctx->state);
 	case RIP_CMD_REQUEST:
-		LOG_ERR("RIP_CMD_REQUEST: unimplemented");
-		return 1;
-		break;
+		return rip_send_advertisement_unicast(&rip_ctx->rip_db, msg_buffer.entries,
+						      n_entries, sender, socket->if_index);
 	default:
 		LOG_ERR("Unsupported rip command: %d", msg_buffer.header.command);
 		return 1;

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 
+
 int get_prefix_len(struct in_addr subnet_mask)
 {
 	uint32_t host_mask     = ntohl(subnet_mask.s_addr);
@@ -109,4 +110,13 @@ bool is_net_mask_valid(struct in_addr net_mask_n)
 	size_t leading_ones	  = __builtin_clz(net_mask_flipped);
 
 	return (leading_ones + trailing_zeros) == 32;
+}
+
+
+char * rip_ntop(struct in_addr address)
+{
+	static char addr [INET_ADDRSTRLEN] = {0};
+	inet_ntop(AF_INET, &address.s_addr, addr, INET_ADDRSTRLEN);
+
+	return addr;
 }

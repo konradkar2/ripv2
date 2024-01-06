@@ -80,4 +80,7 @@ void rip_route_description_print(const struct rip_route_description *descr, FILE
 bool is_unicast_address(struct in_addr address_n);
 bool is_net_mask_valid(struct in_addr net_mask_n);
 
+//not thread safe
+char * rip_ntop(struct in_addr address);
+
 #endif

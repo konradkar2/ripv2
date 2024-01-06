@@ -4,6 +4,7 @@
 #include "rip_ipc.h"
 #include "rip_recv.h"
 #include "rip_route.h"
+#include "rip_socket.h"
 #include "rip_update.h"
 #include "utils/config/parse_rip_config.h"
 #include "utils/event.h"
@@ -11,7 +12,6 @@
 #include "utils/logging.h"
 #include "utils/timer.h"
 #include "utils/utils.h"
-#include "rip_socket.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <errno.h>
@@ -23,6 +23,16 @@
 #include <sys/types.h>
 
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
+
+int rip_handle_t_update(const struct event *event)
+{
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->t_update)) {
+		return 1;
+	}
+
+	return rip_send_advertisement(ctx);
+}
 
 int init_event_dispatcher(struct rip_context *ctx)
 {
