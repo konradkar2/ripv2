@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <unistd.h>
 #include <utils/network/socket.h>
 
 void print_n_buffer(struct msg_buffer *buffer, size_t n_entries)
@@ -144,5 +145,8 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 	}
 
 	struct rip_socket socket = {.fd = fd, .if_index = origin_if_index};
-	return rip_send_adv(&buffer, &socket, sender_addr, rip_poliy_split_horizon, db);
+	int ret = rip_send_adv(&buffer, &socket, sender_addr, rip_poliy_split_horizon, db);
+
+	close(fd);
+	return ret;
 }
