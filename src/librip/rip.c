@@ -31,7 +31,7 @@ int rip_handle_t_update(const struct event *event)
 		return 1;
 	}
 
-	return rip_send_advertisement(ctx);
+	return rip_send_advertisement_multicast(ctx, RIP_CMD_RESPONSE);
 }
 
 int init_event_dispatcher(struct rip_context *ctx)
@@ -182,6 +182,10 @@ int rip_begin(struct rip_context *ctx)
 
 	if (init_event_dispatcher(ctx)) {
 		LOG_ERR("init_event_dispatcher");
+		return 1;
+	}
+
+	if (rip_send_advertisement_multicast(ctx, RIP_CMD_REQUEST)) {
 		return 1;
 	}
 
