@@ -55,6 +55,9 @@ struct rip_route_description {
 	struct rip2_entry entry;
 	uint32_t if_index;
 	enum rip_route_learned_via learned_via;
+
+// flags, not used for hashmap comparison
+	bool changed;
 };
 
 enum rip_state {
@@ -80,7 +83,5 @@ void rip_route_description_print(const struct rip_route_description *descr, FILE
 bool is_unicast_address(struct in_addr address_n);
 bool is_net_mask_valid(struct in_addr net_mask_n);
 
-//not thread safe
-char * rip_ntop(struct in_addr address);
 
 #endif

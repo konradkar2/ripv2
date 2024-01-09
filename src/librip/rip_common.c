@@ -113,10 +113,3 @@ bool is_net_mask_valid(struct in_addr net_mask_n)
 }
 
 
-char * rip_ntop(struct in_addr address)
-{
-	static char addr [INET_ADDRSTRLEN] = {0};
-	inet_ntop(AF_INET, &address.s_addr, addr, INET_ADDRSTRLEN);
-
-	return addr;
-}

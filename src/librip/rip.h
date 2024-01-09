@@ -15,7 +15,12 @@ struct rip_context {
 	struct rip_ifc *rip_ifcs;
 	size_t rip_ifcs_n;
 
-	struct timer t_update;
+	struct rip_timers {
+		struct timer t_update;
+		struct timer t_triggered_lock;
+		bool t_triggered_lock_expired;
+	} timers;
+
 	struct rip_route_mngr *route_mngr;
 	struct rip_ipc *ipc_mngr;
 	struct rip_db rip_db;

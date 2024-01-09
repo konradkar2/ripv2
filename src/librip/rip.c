@@ -27,11 +27,24 @@
 int rip_handle_t_update(const struct event *event)
 {
 	struct rip_context *ctx = event->arg;
-	if (timer_clear(&ctx->t_update)) {
+	if (timer_clear(&ctx->timers.t_update)) {
 		return 1;
 	}
 
-	return rip_send_advertisement_multicast(ctx, RIP_CMD_RESPONSE);
+	return rip_send_advertisement_multicast(ctx, false);
+}
+
+int rip_handle_t_triggered_lock(const struct event *event)
+{
+	LOG_INFO("rip_handle_t_triggered_lock");
+
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->timers.t_triggered_lock)) {
+		return 1;
+	}
+
+	ctx->timers.t_triggered_lock_expired = true;
+	return 0;
 }
 
 int init_event_dispatcher(struct rip_context *ctx)
@@ -62,11 +75,41 @@ int init_event_dispatcher(struct rip_context *ctx)
 		return 1;
 	}
 
-	if (event_dispatcher_register(
-		ed,
-		&(struct event){.fd = ctx->t_update.fd, .cb = rip_handle_t_update, .arg = ctx})) {
+	if (event_dispatcher_register(ed, &(struct event){.fd  = ctx->timers.t_update.fd,
+							  .cb  = rip_handle_t_update,
+							  .arg = ctx})) {
 		return 1;
 	}
+
+	if (event_dispatcher_register(ed, &(struct event){.fd  = ctx->timers.t_triggered_lock.fd,
+							  .cb  = rip_handle_t_triggered_lock,
+							  .arg = ctx})) {
+		return 1;
+	}
+
+	return 0;
+}
+
+int handle_route_changed(struct rip_context *ctx)
+{
+	if (ctx->timers.t_triggered_lock_expired == false) {
+		LOG_INFO("timer lock pending");
+		return 0;
+	}
+
+	LOG_INFO("handling state changed...");
+	bool advertise_only_changed = true;
+	if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
+		LOG_ERR("rip_send_advertisement_multicast");
+		return 1;
+	}
+
+	//TODO randomize value between 2 and 5 seconds
+	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, 0.1f)) {
+		LOG_ERR("timer_start_oneshot");
+		return 1;
+	}
+	ctx->timers.t_triggered_lock_expired = false;
 
 	return 0;
 }
@@ -80,8 +123,11 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 			return 1;
 		}
 
+		// todo: fix global flag setting
 		if (rip_ctx->state == rip_state_route_changed) {
-			LOG_INFO("State changed");
+			if (handle_route_changed(rip_ctx)) {
+				return 1;
+			}
 		}
 		rip_ctx->state = rip_state_idle;
 	}
@@ -136,6 +182,22 @@ static int add_advertised_networks_to_db(struct rip_db *db, const struct rip_con
 	return 0;
 }
 
+int rip_init_timers(struct rip_timers *timers)
+{
+	if (timer_init(&timers->t_update) || timer_start_interval(&timers->t_update, 30, 10)) {
+		LOG_ERR("t_update");
+		return 1;
+	}
+
+	if (timer_init(&timers->t_triggered_lock)) {
+		LOG_ERR("t_triggered_lock");
+		return 1;
+	}
+	timers->t_triggered_lock_expired = true;
+
+	return 0;
+}
+
 int rip_begin(struct rip_context *ctx)
 {
 	LOG_INFO("%s", __func__);
@@ -154,6 +216,7 @@ int rip_begin(struct rip_context *ctx)
 		LOG_ERR("failed to setup_resources");
 		return 1;
 	}
+	rip_print_sockets(ctx->rip_ifcs, ctx->rip_ifcs_n);
 
 	ctx->route_mngr = rip_route_alloc_init();
 	if (!ctx->route_mngr) {
@@ -176,16 +239,14 @@ int rip_begin(struct rip_context *ctx)
 		return 1;
 	}
 
-	if (timer_init(&ctx->t_update) || timer_start_interval(&ctx->t_update, 30, 10)) {
-		return 1;
-	}
+	rip_init_timers(&ctx->timers);
 
 	if (init_event_dispatcher(ctx)) {
 		LOG_ERR("init_event_dispatcher");
 		return 1;
 	}
 
-	if (rip_send_advertisement_multicast(ctx, RIP_CMD_REQUEST)) {
+	if (rip_send_request_multicast(ctx)) {
 		return 1;
 	}
 

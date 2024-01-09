@@ -36,6 +36,8 @@ bool is_entry_valid(struct rip2_entry *entry)
 int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *db,
 			      struct rip_route_description *new_route, enum rip_state *state)
 {
+	new_route->changed = true;
+
 	if (rip_route_add_route(route_mngr, new_route) > 0) {
 		return 1;
 	}
@@ -59,7 +61,9 @@ int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
 
 	if (old_entry->metric != new_entry->metric) {
 		old_entry->metric = new_entry->metric;
-		*state		  = rip_state_route_changed;
+
+		old_route->changed = true;
+		*state		   = rip_state_route_changed;
 	}
 	return 0;
 }

@@ -5,9 +5,9 @@
 #include <errno.h>
 #include <string.h>
 
-static void rip_socket_print(FILE *output, const struct rip_socket *e)
+static void rip_socket_print(const struct rip_socket *e)
 {
-	fprintf(output, "fd: %d, if_name: %s, if_index : %d\n", e->fd, e->if_name, e->if_index);
+	printf("fd: %d, if_name: %s, if_index : %d", e->fd, e->if_name, e->if_index);
 }
 
 static int setup_socket_rx(struct rip_socket *sock)
@@ -66,7 +66,7 @@ int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 			struct rip_socket *socket_rx = &ifc->socket_rx;
 			if (setup_socket_rx(socket_rx)) {
 				LOG_ERR("setup_socket_rx");
-				rip_socket_print(stderr, socket_rx);
+				rip_socket_print(socket_rx);
 				return 1;
 			}
 		}
@@ -74,7 +74,7 @@ int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 			struct rip_socket *socket_tx = &ifc->socket_tx;
 			if (setup_socket_tx(socket_tx)) {
 				LOG_ERR("setup_socket_tx");
-				rip_socket_print(stderr, socket_tx);
+				rip_socket_print(socket_tx);
 				return 1;
 			}
 		}
@@ -83,10 +83,24 @@ int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 	return 0;
 }
 
+void rip_print_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
+{
+	LOG_INFO("%s", __func__);
+	for (size_t i = 0; i < ifcs_n; ++i) {
+		struct rip_ifc *ifc = &ifcs[i];
+		printf("rx: ");
+		rip_socket_print(&ifc->socket_rx);
+		printf("\n");
+		printf("tx: ");
+		rip_socket_print(&ifc->socket_tx);
+		printf("\n");
+	}
+}
+
 static int rip_assign_ifc_to_socket(struct rip_interface *interface_cfg, struct rip_socket *socket)
 {
 	strncpy(socket->if_name, interface_cfg->dev, sizeof(socket->if_name));
-	if (socket->if_name[0] == '\0') {
+	if (strlen(socket->if_name) == 0) {
 		LOG_ERR("if_name");
 		return 1;
 	}
@@ -101,7 +115,7 @@ static int rip_assign_ifc_to_socket(struct rip_interface *interface_cfg, struct 
 }
 
 int rip_set_if_index_to_sockets(struct rip_configuration *cfg, struct rip_ifc **rip_ifcs,
-			       size_t *rip_ifcs_n)
+				size_t *rip_ifcs_n)
 {
 	*rip_ifcs = CALLOC(sizeof(struct rip_ifc) * cfg->rip_interfaces_n);
 	if (!(*rip_ifcs)) {
@@ -111,13 +125,12 @@ int rip_set_if_index_to_sockets(struct rip_configuration *cfg, struct rip_ifc **
 
 	for (size_t i = 0; i < cfg->rip_interfaces_n; ++i) {
 		struct rip_interface *interface_cfg = &cfg->rip_interfaces[i];
-		struct rip_ifc *ifc		    = *rip_ifcs;
+		struct rip_ifc *ifc		    = &(*rip_ifcs)[i];
 
-		struct rip_socket *socket_rx = &ifc[i].socket_rx;
-		struct rip_socket *socket_tx = &ifc[i].socket_tx;
-
-		rip_assign_ifc_to_socket(interface_cfg, socket_rx);
-		rip_assign_ifc_to_socket(interface_cfg, socket_tx);
+		if (rip_assign_ifc_to_socket(interface_cfg, &ifc->socket_rx))
+			return 1;
+		if (rip_assign_ifc_to_socket(interface_cfg, &ifc->socket_tx))
+			return 1;
 	}
 
 	return 0;

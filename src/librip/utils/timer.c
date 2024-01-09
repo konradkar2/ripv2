@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <poll.h>
 
 int timer_init(struct timer *timer)
 {
@@ -26,14 +27,9 @@ int timer_init(struct timer *timer)
 	return 0;
 }
 
-int timer_start_interval(struct timer *t, int interval_s, int value_s)
+static int timer_set(struct timer *t, struct itimerspec *tspec)
 {
-	struct timespec interval = (struct timespec){.tv_sec = interval_s};
-	struct timespec value	 = (struct timespec){.tv_sec = value_s};
-	struct itimerspec timerspec =
-	    (struct itimerspec){.it_interval = interval, .it_value = value};
-
-	if (timerfd_settime(t->fd, 0, &timerspec, NULL)) {
+	if (timerfd_settime(t->fd, 0, tspec, NULL)) {
 		LOG_ERR("timerfd_settime: %s", strerror(errno));
 		return 1;
 	}
@@ -41,13 +37,37 @@ int timer_start_interval(struct timer *t, int interval_s, int value_s)
 	return 0;
 }
 
+int timer_start_interval(struct timer *t, int interval_s, int value_s)
+{
+	struct timespec interval = (struct timespec){.tv_sec = interval_s};
+	struct timespec value	 = (struct timespec){.tv_sec = value_s};
+	struct itimerspec timerspec =
+	    (struct itimerspec){.it_interval = interval, .it_value = value};
+
+	return timer_set(t, &timerspec);
+}
+
+int timer_start_oneshot(struct timer *t, float value_s)
+{
+	int seconds	     = value_s;
+	long long nanosecond = (value_s - seconds) * 1000.0f * 1000.0f * 1000.0f;
+
+	struct itimerspec timerspec = (struct itimerspec){
+	    .it_interval = {0, 0}, .it_value = {.tv_sec = (int)value_s, .tv_nsec = nanosecond}};
+
+	return timer_set(t, &timerspec);
+}
+
 int timer_clear(struct timer *t)
 {
 	uint64_t buff;
 	if (-1 == read(t->fd, &buff, sizeof(buff))) {
-		LOG_ERR("read failed, fd: %d, %s", t->fd, strerror(errno));
+		LOG_ERR("read, fd: %d, %s", t->fd, strerror(errno));
 		return 1;
 	}
 
 	return 0;
 }
+
+
+
