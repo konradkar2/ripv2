@@ -5,4 +5,6 @@ BreakBeforeBraces: Linux
 AllowShortIfStatementsOnASingleLine: false
 IndentCaseLabels: false
 AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
 ColumnLimit: 100
+

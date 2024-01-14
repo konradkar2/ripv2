@@ -64,6 +64,19 @@ int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 	return 0;
 }
 
+int event_dispatcher_register_many(struct event_dispatcher *ed, struct event *events,
+				   size_t events_len)
+{
+	for (size_t i = 0; i < events_len; ++i) {
+		struct event *event = &events[i];
+		if (event_dispatcher_register(ed, event)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 void event_dispatcher_destroy(struct event_dispatcher *ed)
 {
 	if (!ed || !ed->events) {
