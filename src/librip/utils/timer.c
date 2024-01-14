@@ -37,16 +37,6 @@ static int timer_set(struct timer *t, struct itimerspec *tspec)
 	return 0;
 }
 
-int timer_start_interval(struct timer *t, int interval_s, int value_s)
-{
-	struct timespec interval = (struct timespec){.tv_sec = interval_s};
-	struct timespec value	 = (struct timespec){.tv_sec = value_s};
-	struct itimerspec timerspec =
-	    (struct itimerspec){.it_interval = interval, .it_value = value};
-
-	return timer_set(t, &timerspec);
-}
-
 int timer_start_oneshot(struct timer *t, float value_s)
 {
 	int seconds	     = value_s;

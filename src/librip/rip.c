@@ -21,8 +21,15 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
+
+static float create_t_update_time(void)
+{
+	// 3.8 Timers: 30 seconds +/- random (0,5) seconds
+	return 27.5 + get_random_float(2.5, 7.5);
+}
 
 static int rip_handle_t_update(const struct event *event)
 {
@@ -31,7 +38,17 @@ static int rip_handle_t_update(const struct event *event)
 		return 1;
 	}
 
-	return rip_send_advertisement_multicast(ctx, false);
+	if (rip_send_advertisement_multicast(ctx, false)) {
+		LOG_ERR("rip_send_advertisement_multicast");
+		return 1;
+	}
+
+	if (timer_start_oneshot(&ctx->timers.t_update, create_t_update_time())) {
+		LOG_ERR("timer_start_oneshot");
+		return 1;
+	}
+
+	return 0;
 }
 
 static int rip_handle_t_triggered_lock(const struct event *event)
@@ -56,18 +73,21 @@ static int init_event_dispatcher(struct rip_context *ctx)
 
 	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
 		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_rx;
-		if (event_dispatcher_register(
-			ed,
-			&(struct event){.fd = socket->fd, .cb = rip_handle_message_event, ctx})) {
+		if (event_dispatcher_register(ed, &(struct event){.fd = socket->fd,
+								  .cb = rip_handle_message_event,
+								  ctx,
+								  socket->if_name})) {
 			return 1;
 		}
 	}
 
 	struct event events[] = {
-	    {rip_ipc_getfd(ctx->ipc_mngr), rip_ipc_handle_event, ctx->ipc_mngr},
-	    {rip_route_getfd(ctx->route_mngr), rip_route_handle_event, ctx->route_mngr},
-	    {ctx->timers.t_update.fd, rip_handle_t_update, ctx},
-	    {ctx->timers.t_triggered_lock.fd, rip_handle_t_triggered_lock, &ctx->timers}};
+	    {rip_ipc_getfd(ctx->ipc_mngr), rip_ipc_handle_event, ctx->ipc_mngr, "ipc"},
+	    {rip_route_getfd(ctx->route_mngr), rip_route_handle_event, ctx->route_mngr,
+	     "route_table_update"},
+	    {ctx->timers.t_update.fd, rip_handle_t_update, ctx, "t_update"},
+	    {ctx->timers.t_triggered_lock.fd, rip_handle_t_triggered_lock, &ctx->timers,
+	     "t_triggered_lock"}};
 
 	if (event_dispatcher_register_many(ed, events, ARRAY_LEN(events))) {
 		return 1;
@@ -79,7 +99,6 @@ static int init_event_dispatcher(struct rip_context *ctx)
 int handle_route_changed(struct rip_context *ctx)
 {
 	if (ctx->timers.t_triggered_lock_expired == false) {
-		LOG_INFO("timer lock pending");
 		return 0;
 	}
 
@@ -90,8 +109,8 @@ int handle_route_changed(struct rip_context *ctx)
 		return 1;
 	}
 
-	// TODO randomize value between 2 and 5 seconds
-	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, 0.1f)) {
+	// 3.10.1 triggered update lock time
+	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, get_random_float(1, 5))) {
 		LOG_ERR("timer_start_oneshot");
 		return 1;
 	}
@@ -170,7 +189,8 @@ static int add_advertised_networks_to_db(struct rip_db *db, const struct rip_con
 
 static int rip_init_timers(struct rip_timers *timers)
 {
-	if (timer_init(&timers->t_update) || timer_start_interval(&timers->t_update, 30, 10)) {
+	if (timer_init(&timers->t_update) ||
+	    timer_start_oneshot(&timers->t_update, create_t_update_time())) {
 		LOG_ERR("t_update");
 		return 1;
 	}
@@ -187,6 +207,8 @@ static int rip_init_timers(struct rip_timers *timers)
 int rip_begin(struct rip_context *ctx)
 {
 	LOG_INFO("%s", __func__);
+
+	srand(time(NULL));
 
 	if (rip_read_config(RIP_CONFIG_FILENAME, &ctx->config)) {
 		LOG_ERR("failed to read configuration");

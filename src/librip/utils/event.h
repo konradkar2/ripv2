@@ -8,6 +8,7 @@ struct event {
 	int fd;
 	event_cb cb;
 	void *arg;
+	const char * name;
 };
 
 #endif

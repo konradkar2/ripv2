@@ -24,8 +24,8 @@ static uint64_t event_hash(const void *item, uint64_t seed0, uint64_t seed1)
 
 int event_dispatcher_init(struct event_dispatcher *ed)
 {
-	struct hashmap **events_map = &ed->events;
-	struct vector **pollfds_vec = &ed->pollfds;
+	struct hashmap **events_map  = &ed->events;
+	struct vector  **pollfds_vec = &ed->pollfds;
 
 	*events_map = hashmap_new(sizeof(struct event), 0, 0, 0, event_hash, event_cmp, NULL, NULL);
 	*pollfds_vec = vector_create(10, sizeof(struct pollfd));
@@ -40,8 +40,8 @@ int event_dispatcher_init(struct event_dispatcher *ed)
 
 int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 {
-	struct hashmap *events_map = ed->events;
-	struct vector *pollfds_vec = ed->pollfds;
+	struct hashmap *events_map  = ed->events;
+	struct vector  *pollfds_vec = ed->pollfds;
 
 	if (hashmap_get(events_map, e) != NULL) {
 		LOG_ERR("event already registered, fd: %d", e->fd);
@@ -88,8 +88,8 @@ void event_dispatcher_destroy(struct event_dispatcher *ed)
 
 int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 {
-	struct hashmap *events_map = ed->events;
-	struct vector *pollfds_vec = ed->pollfds;
+	struct hashmap *events_map  = ed->events;
+	struct vector  *pollfds_vec = ed->pollfds;
 
 	if (-1 == poll(vector_get(pollfds_vec, 0), vector_get_len(pollfds_vec), -1)) {
 		LOG_ERR("poll failed: %s", strerror(errno));
@@ -106,16 +106,14 @@ int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 			continue;
 		}
 
-		LOG_INFO("event on fd: %d", fd);
-
 		const struct event *event = hashmap_get(events_map, &(struct event){.fd = fd});
 		if (!event) {
 			LOG_ERR("event not found, fd: %d", fd);
 			return 1;
 		}
 
+		LOG_INFO("\"%s\" event on fd: %d", event->name, fd);
 		event->cb(event);
-		return 0;
 	}
 
 	return 0;
