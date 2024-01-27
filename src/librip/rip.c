@@ -51,16 +51,44 @@ static int rip_handle_t_update(const struct event *event)
 	return 0;
 }
 
+int check_route_changed(struct rip_context *ctx)
+{
+	if (timer_is_ticking(&ctx->timers.t_triggered_lock)) {
+		return 0;
+	}
+
+	if (false == rip_db_any_route_changed(&ctx->rip_db)) {
+		return 0;
+	}
+
+	bool advertise_only_changed = true;
+	if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
+		LOG_ERR("rip_send_advertisement_multicast");
+		return 1;
+	}
+
+	// 3.10.1 triggered update lock time
+	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, get_random_float(1, 5))) {
+		LOG_ERR("timer_start_oneshot");
+		return 1;
+	}
+
+	return 0;
+}
+
 static int rip_handle_t_triggered_lock(const struct event *event)
 {
 	LOG_INFO("rip_handle_t_triggered_lock");
 
-	struct rip_timers *timers = event->arg;
-	if (timer_clear(&timers->t_triggered_lock)) {
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->timers.t_triggered_lock)) {
 		return 1;
 	}
 
-	timers->t_triggered_lock_expired = true;
+	if (check_route_changed(ctx)) {
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -86,35 +114,12 @@ static int init_event_dispatcher(struct rip_context *ctx)
 	    {rip_route_getfd(ctx->route_mngr), rip_route_handle_event, ctx->route_mngr,
 	     "route_table_update"},
 	    {ctx->timers.t_update.fd, rip_handle_t_update, ctx, "t_update"},
-	    {ctx->timers.t_triggered_lock.fd, rip_handle_t_triggered_lock, &ctx->timers,
+	    {ctx->timers.t_triggered_lock.fd, rip_handle_t_triggered_lock, ctx,
 	     "t_triggered_lock"}};
 
 	if (event_dispatcher_register_many(ed, events, ARRAY_LEN(events))) {
 		return 1;
 	}
-
-	return 0;
-}
-
-int handle_route_changed(struct rip_context *ctx)
-{
-	if (ctx->timers.t_triggered_lock_expired == false) {
-		return 0;
-	}
-
-	LOG_INFO("handling state changed...");
-	bool advertise_only_changed = true;
-	if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
-		LOG_ERR("rip_send_advertisement_multicast");
-		return 1;
-	}
-
-	// 3.10.1 triggered update lock time
-	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, get_random_float(1, 5))) {
-		LOG_ERR("timer_start_oneshot");
-		return 1;
-	}
-	ctx->timers.t_triggered_lock_expired = false;
 
 	return 0;
 }
@@ -128,13 +133,9 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 			return 1;
 		}
 
-		// todo: fix global flag setting
-		if (rip_ctx->state == rip_state_route_changed) {
-			if (handle_route_changed(rip_ctx)) {
-				return 1;
-			}
+		if (check_route_changed(rip_ctx)) {
+			return 0;
 		}
-		rip_ctx->state = rip_state_idle;
 	}
 
 	return 0;
@@ -199,7 +200,6 @@ static int rip_init_timers(struct rip_timers *timers)
 		LOG_ERR("t_triggered_lock");
 		return 1;
 	}
-	timers->t_triggered_lock_expired = true;
 
 	return 0;
 }

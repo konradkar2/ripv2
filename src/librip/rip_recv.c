@@ -34,11 +34,10 @@ bool is_entry_valid(struct rip2_entry *entry)
 }
 
 int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *db,
-			      struct rip_route_description *new_route, enum rip_state *state)
+			      struct rip_route_description *new_route)
 {
 	new_route->changed = true;
-
-	if (rip_route_add_route(route_mngr, new_route) > 0) {
+	if (rip_route_add_route(route_mngr, new_route)) {
 		return 1;
 	}
 
@@ -46,13 +45,12 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 		return 1;
 	}
 
-	*state = rip_state_route_changed;
 	return 0;
 }
 
 int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
 			struct rip_route_description *old_route,
-			struct rip_route_description *new_route, enum rip_state *state)
+			struct rip_route_description *new_route)
 {
 	(void)route_mngr;
 	(void)db;
@@ -61,9 +59,6 @@ int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
 
 	if (old_entry->metric != new_entry->metric) {
 		old_entry->metric = new_entry->metric;
-
-		old_route->changed = true;
-		*state		   = rip_state_route_changed;
 	}
 	return 0;
 }
@@ -78,11 +73,10 @@ void build_route_description(struct rip2_entry *entry, struct in_addr sender_add
 }
 
 int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
-		       struct rip2_entry *entry, struct in_addr sender_addr, int if_index,
-		       enum rip_state *state)
+		       struct rip2_entry *entry, struct in_addr sender_addr, int if_index)
 {
 	struct rip_route_description *old_route = NULL;
-	struct rip_route_description incoming_route;
+	struct rip_route_description  incoming_route;
 	MEMSET_ZERO(&incoming_route);
 
 	rip2_entry_ntoh(entry);
@@ -96,21 +90,20 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	old_route = (struct rip_route_description *)rip_db_get(db, &incoming_route);
 
 	if (old_route) {
-		return handle_route_update(route_mngr, db, old_route, &incoming_route, state);
+		return handle_route_update(route_mngr, db, old_route, &incoming_route);
 	} else {
-		return handle_non_existing_route(route_mngr, db, &incoming_route, state);
+		return handle_non_existing_route(route_mngr, db, &incoming_route);
 	}
 }
 
 int rip_handle_response(struct rip_route_mngr *route_mngr, struct rip_db *db,
 			struct rip2_entry entries[], size_t n_entry, struct in_addr sender_addr,
-			int origin_if_index, enum rip_state *state)
+			int origin_if_index)
 {
 	int ret = 0;
 	for (size_t i = 0; i < n_entry; ++i) {
 		struct rip2_entry *entry = &entries[i];
-		if (handle_ripv2_entry(route_mngr, db, entry, sender_addr, origin_if_index,
-				       state)) {
+		if (handle_ripv2_entry(route_mngr, db, entry, sender_addr, origin_if_index)) {
 			ret = 1;
 		}
 	}
@@ -158,7 +151,7 @@ static struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t 
 
 int rip_handle_message_event(const struct event *event)
 {
-	struct rip_context *rip_ctx = event->arg;
+	struct rip_context	*rip_ctx = event->arg;
 	const struct rip_socket *socket =
 	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
 
@@ -167,8 +160,8 @@ int rip_handle_message_event(const struct event *event)
 	}
 
 	struct msg_buffer msg_buffer;
-	struct in_addr sender;
-	size_t n_bytes;
+	struct in_addr	  sender;
+	size_t		  n_bytes;
 	if (rip_recvfrom(socket->fd, &msg_buffer, &sender, &n_bytes)) {
 		return 1;
 	}
@@ -177,8 +170,7 @@ int rip_handle_message_event(const struct event *event)
 	switch (msg_buffer.header.command) {
 	case RIP_CMD_RESPONSE:
 		return rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
-					   msg_buffer.entries, n_entries, sender, socket->if_index,
-					   &rip_ctx->state);
+					   msg_buffer.entries, n_entries, sender, socket->if_index);
 	case RIP_CMD_REQUEST:
 		return rip_send_advertisement_unicast(&rip_ctx->rip_db, msg_buffer.entries,
 						      n_entries, sender, socket->if_index);

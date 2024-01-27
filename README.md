@@ -57,7 +57,8 @@ To build and run the test do following
 ```
 cmake -B build_debug -DCMAKE_BUILD_TYPE=DEBUG
 cmake --build build_debug
-sudo ctest --test-dir build_debug/src/tests -T memcheck
+sudo ctest -V --test-dir build_debug/src/tests
+sudo ctest -V --test-dir build_debug/src/tests -T memcheck
 ```
 ### Integration tests
 To run the integration tests run buildnrun.sh script. This will build a docker image, and launch unit/integration tests.

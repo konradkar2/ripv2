@@ -35,7 +35,7 @@ static int rip_send(int fd, struct in_addr destination, struct msg_buffer *buffe
 	socket_address.sin_port	  = htons(RIP_UDP_PORT);
 	socket_address.sin_addr	  = destination;
 
-	size_t send_size   = sizeof(struct rip_header) + sizeof(struct rip2_entry) * n_entries;
+	size_t	send_size  = sizeof(struct rip_header) + sizeof(struct rip2_entry) * n_entries;
 	ssize_t sent_bytes = sendto(fd, buffer, send_size, 0, (struct sockaddr *)&socket_address,
 				    sizeof(socket_address));
 
@@ -51,27 +51,27 @@ enum rip_neighbour_policy { rip_neighbour_split_horizon, rip_neighbour_poison };
 
 struct rip_advertising_policy {
 	enum rip_neighbour_policy neigbour_policy;
-	bool advertise_only_changed;
+	bool			  advertise_only_changed;
 };
 
 void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct msg_buffer *buffer,
 			      size_t *n_entries, const struct rip_advertising_policy policy)
 {
-	size_t written_entries_n = 0;
-	size_t db_iter		 = 0;
-	struct rip_route_description *db_route;
-	while (rip_db_iter(db, &db_iter, &db_route)) {
+	size_t				    written_entries_n = 0;
+	size_t				    db_iter	      = 0;
+	const struct rip_route_description *route;
+	while (rip_db_iter(db, &db_iter, &route)) {
 
-		if (policy.advertise_only_changed == true && db_route->changed == false) {
+		if (policy.advertise_only_changed == true && route->changed == false) {
 			continue;
 		}
 
-		struct rip2_entry *entry_out = &buffer->entries[written_entries_n];
+		struct rip2_entry *buffer_entry = &buffer->entries[written_entries_n];
 
-		if (db_route->if_index != if_index_dest) {
-			memcpy(entry_out, &db_route->entry, sizeof(struct rip2_entry));
-			rip2_entry_hton(entry_out);
-			db_route->changed = false;
+		if (route->if_index != if_index_dest) {
+			memcpy(buffer_entry, &route->entry, sizeof(struct rip2_entry));
+			rip2_entry_hton(buffer_entry);
+			rip_db_mark_route_as_unchanged(db, (struct rip_route_description *)route);
 			++written_entries_n;
 		} else {
 			if (policy.neigbour_policy == rip_neighbour_split_horizon) {
@@ -91,15 +91,6 @@ int rip_send_response(struct msg_buffer *buffer, const struct rip_socket *socket
 
 	size_t n_entries = 0;
 	fill_buffer_with_entries(socket->if_index, db, buffer, &n_entries, policy);
-	return rip_send(socket->fd, destination, buffer, n_entries);
-}
-
-int rip_send_request(struct msg_buffer *buffer, struct in_addr destination,
-		     const struct rip_socket *socket)
-{
-	size_t n_entries = 1;
-
-	buffer->entries[0] = (struct rip2_entry){.metric = htonl(16)};
 	return rip_send(socket->fd, destination, buffer, n_entries);
 }
 
@@ -136,6 +127,8 @@ int rip_send_request_multicast(struct rip_context *ctx)
 
 	buffer.header.version = 2;
 	buffer.header.command = RIP_CMD_RESPONSE;
+	size_t n_entries      = 1;
+	buffer.entries[0]     = (struct rip2_entry){.metric = htonl(16)};
 
 	struct in_addr rip_address_n = {0};
 	inet_aton(RIP_MULTICAST_ADDR, &rip_address_n);
@@ -143,7 +136,7 @@ int rip_send_request_multicast(struct rip_context *ctx)
 	LOG_INFO("Sending request command");
 	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
 		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_tx;
-		ret |= rip_send_request(&buffer, rip_address_n, socket);
+		ret |= rip_send(socket->fd, rip_address_n, &buffer, n_entries);
 	}
 
 	return ret;
@@ -182,7 +175,7 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 		return 1;
 	}
 
-	struct rip_socket socket	     = {.fd = fd, .if_index = origin_if_index};
+	struct rip_socket	      socket = {.fd = fd, .if_index = origin_if_index};
 	struct rip_advertising_policy policy = {.neigbour_policy = rip_neighbour_split_horizon,
 						.advertise_only_changed = false};
 

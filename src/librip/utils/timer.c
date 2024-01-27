@@ -3,13 +3,13 @@
 #include <bits/time.h>
 #include <bits/types/struct_itimerspec.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/timerfd.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <poll.h>
 
 int timer_init(struct timer *timer)
 {
@@ -24,6 +24,7 @@ int timer_init(struct timer *timer)
 	}
 
 	timer->fd = fd;
+	timer->is_ticking = false;
 	return 0;
 }
 
@@ -39,13 +40,19 @@ static int timer_set(struct timer *t, struct itimerspec *tspec)
 
 int timer_start_oneshot(struct timer *t, float value_s)
 {
-	int seconds	     = value_s;
+	int	  seconds    = value_s;
 	long long nanosecond = (value_s - seconds) * 1000.0f * 1000.0f * 1000.0f;
 
 	struct itimerspec timerspec = (struct itimerspec){
 	    .it_interval = {0, 0}, .it_value = {.tv_sec = (int)value_s, .tv_nsec = nanosecond}};
 
-	return timer_set(t, &timerspec);
+	if (timer_set(t, &timerspec)) {
+		return 1;
+	}
+
+	t->is_ticking = true;
+
+	return 0;
 }
 
 int timer_clear(struct timer *t)
@@ -55,9 +62,8 @@ int timer_clear(struct timer *t)
 		LOG_ERR("read, fd: %d, %s", t->fd, strerror(errno));
 		return 1;
 	}
-
+	t->is_ticking = false;
 	return 0;
 }
 
-
-
+bool timer_is_ticking(struct timer *t) { return t->is_ticking; }

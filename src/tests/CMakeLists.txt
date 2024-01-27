@@ -4,7 +4,7 @@ project(tests VERSION 1.0)
 
 find_program(MEMORYCHECK_COMMAND valgrind REQUIRED)
 message(NOTICE "MEMORYCHECK_COMMAND: ${MEMORYCHECK_COMMAND}")
-set(MEMORYCHECK_COMMAND_OPTIONS  "--leak-check=full --error-exitcode=100" )
+set(MEMORYCHECK_COMMAND_OPTIONS  "--leak-check=full --error-exitcode=100")
 
 include(CTest)
 enable_testing()

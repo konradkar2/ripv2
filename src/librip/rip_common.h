@@ -21,12 +21,12 @@ struct rip_header {
 };
 
 struct rip2_entry {
-	uint16_t routing_family_id;
-	uint16_t route_tag;
+	uint16_t       routing_family_id;
+	uint16_t       route_tag;
 	struct in_addr ip_address;
 	struct in_addr subnet_mask;
 	struct in_addr next_hop;
-	uint32_t metric;
+	uint32_t       metric;
 };
 
 struct msg_buffer {
@@ -49,26 +49,26 @@ enum rip_route_learned_via {
 	rip_route_learned_via_rip,
 };
 
+struct rip_route_changed_cnt {
+	int value;
+};
+
 // Aggregate type for lookup
 // Check rip_db.c for which field is used for lookup and cannot be modified
 struct rip_route_description {
-	struct rip2_entry entry;
-	uint32_t if_index;
+	struct rip2_entry	   entry;
+	uint32_t		   if_index;
 	enum rip_route_learned_via learned_via;
 
-// flags, not used for hashmap comparison
-	bool changed;
-};
-
-enum rip_state {
-	rip_state_idle,
-	rip_state_route_changed,
+	// fields not used for hashmap comparison
+	bool			      changed;
+	struct rip_route_changed_cnt *changed_cnt;
 };
 
 struct rip_socket {
-	int fd;
+	int  fd;
 	char if_name[IF_NAMESIZE];
-	int if_index;
+	int  if_index;
 };
 
 struct rip_ifc {
@@ -76,12 +76,11 @@ struct rip_ifc {
 	struct rip_socket socket_tx;
 };
 
-int get_prefix_len(struct in_addr subnet_mask);
-int prefix_len_to_subnet(size_t prefix_len, struct in_addr *out);
+int  get_prefix_len(struct in_addr subnet_mask);
+int  prefix_len_to_subnet(size_t prefix_len, struct in_addr *out);
 void rip_route_description_print(const struct rip_route_description *descr, FILE *file);
 
 bool is_unicast_address(struct in_addr address_n);
 bool is_net_mask_valid(struct in_addr net_mask_n);
-
 
 #endif
