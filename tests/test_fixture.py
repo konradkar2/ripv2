@@ -55,7 +55,7 @@ def wait_for_frr(router_a: Host, router_b: Host):
 
 class munet_environment:
     def __init__(self, env_name: str):
-        self.munet_ns_dir = "/tmp/{0}".format(env_name)
+        self.munet_ns_dir = "/tmp/ripv2_tests/{0}".format(env_name)
         system("rm -rf {0}".format(self.munet_ns_dir))
         self.munet_ifc = run_munet(self.munet_ns_dir)
         time.sleep(2)

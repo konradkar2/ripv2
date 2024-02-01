@@ -24,10 +24,12 @@ kinds:
       route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0
       route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1
       touch /var/log/rip/rip.log
+      tshark -i any -w /var/log/rip/traffic.pcap &
+      sleep 1
       rip >> /var/log/rip/rip.log 2>&1 &
-      tail -F -n +1 /var/log/rip/rip.log
     cleanup-cmd: |
       pkill rip
+      pkill tshark
     volumes:
       - "./%NAME%/etc.rip:/etc/rip"
       - "%RUNDIR%/var.log.rip:/var/log/rip"

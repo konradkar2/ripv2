@@ -57,22 +57,25 @@ struct rip_advertising_policy {
 void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct msg_buffer *buffer,
 			      size_t *n_entries, const struct rip_advertising_policy policy)
 {
-	size_t				    written_entries_n = 0;
+	size_t				    buffer_entry_cnt = 0;
 	size_t				    db_iter	      = 0;
 	const struct rip_route_description *route;
 	while (rip_db_iter(db, &db_iter, &route)) {
 
-		if (policy.advertise_only_changed == true && route->changed == false) {
-			continue;
+		if (policy.advertise_only_changed == true) {
+			if (route->changed == false) {
+				continue;
+			}
 		}
 
-		struct rip2_entry *buffer_entry = &buffer->entries[written_entries_n];
+		struct rip2_entry *buffer_entry = &buffer->entries[buffer_entry_cnt];
 
 		if (route->if_index != if_index_dest) {
 			memcpy(buffer_entry, &route->entry, sizeof(struct rip2_entry));
+			buffer_entry->next_hop.s_addr = 0;
 			rip2_entry_hton(buffer_entry);
 			rip_db_mark_route_as_unchanged(db, (struct rip_route_description *)route);
-			++written_entries_n;
+			++buffer_entry_cnt;
 		} else {
 			if (policy.neigbour_policy == rip_neighbour_split_horizon) {
 				// skip
@@ -81,7 +84,7 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 		}
 	}
 
-	*n_entries = written_entries_n;
+	*n_entries = buffer_entry_cnt;
 }
 
 int rip_send_response(struct msg_buffer *buffer, const struct rip_socket *socket,

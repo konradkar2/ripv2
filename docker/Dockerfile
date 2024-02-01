@@ -2,7 +2,8 @@ FROM ubuntu:22.04
 RUN echo 'Run TestMininet'
 RUN mkdir -p /var/run/sshd
 
-RUN apt-get update && apt-get install -yq \
+RUN apt-get update 
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq \
   vim \
   curl \
   dnsutils \
@@ -20,7 +21,8 @@ RUN apt-get update && apt-get install -yq \
   valgrind \
   pkg-config \ 
   git \
-  cmake 
+  cmake \
+  tshark 
 
 #lib deps
 RUN apt-get install -yq \
