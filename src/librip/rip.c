@@ -57,20 +57,19 @@ int check_route_changed(struct rip_context *ctx)
 		return 0;
 	}
 
-	if (false == rip_db_any_route_changed(&ctx->rip_db)) {
-		return 0;
-	}
+	if (rip_db_any_route_changed(&ctx->rip_db)) {
 
-	bool advertise_only_changed = true;
-	if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
-		LOG_ERR("rip_send_advertisement_multicast");
-		return 1;
-	}
+		bool advertise_only_changed = true;
+		if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
+			LOG_ERR("rip_send_advertisement_multicast");
+			return 1;
+		}
 
-	// 3.10.1 triggered update lock time
-	if (timer_start_oneshot(&ctx->timers.t_triggered_lock, get_random_float(1, 5))) {
-		LOG_ERR("timer_start_oneshot");
-		return 1;
+		// 3.10.1 triggered update lock time
+		if (timer_start_oneshot(&ctx->timers.t_triggered_lock, get_random_float(1, 5))) {
+			LOG_ERR("timer_start_oneshot");
+			return 1;
+		}
 	}
 
 	return 0;

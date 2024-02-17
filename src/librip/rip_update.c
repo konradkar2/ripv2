@@ -79,7 +79,6 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 			memcpy(buffer_entry, &route->entry, sizeof(struct rip2_entry));
 			buffer_entry->next_hop.s_addr = 0;
 			rip2_entry_hton(buffer_entry);
-			rip_db_mark_route_as_unchanged(db, (struct rip_route_description *)route);
 			++buffer_entry_cnt;
 		} else {
 			if (policy.neigbour_policy == rip_neighbour_split_horizon) {
@@ -99,6 +98,7 @@ int rip_send_response(struct msg_buffer *buffer, const struct rip_socket *socket
 
 	size_t n_entries = 0;
 	fill_buffer_with_entries(socket->if_index, db, buffer, &n_entries, policy);
+	rip_db_mark_all_routes_as_unchanged(db);
 	return rip_send(socket->fd, destination, buffer, n_entries);
 }
 

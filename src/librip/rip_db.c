@@ -51,7 +51,7 @@ static uint64_t rip_route_description_cmp_hash(const void *item, uint64_t seed0,
 
 int rip_db_init(struct rip_db *db)
 {
-	db->rounte_changed_cnt = 0;
+	db->any_route_changed = false;
 	db->added_routes =
 	    hashmap_new(sizeof(struct rip_route_description), 0, 0, 0,
 			rip_route_description_cmp_hash, rip_route_description_cmp, NULL, NULL);
@@ -85,7 +85,7 @@ int rip_db_add(struct rip_db *db, struct rip_route_description *entry)
 		return 1;
 	}
 
-	++db->rounte_changed_cnt;
+	db->any_route_changed = true;
 	return 0;
 }
 
@@ -132,13 +132,19 @@ bool rip_db_iter(struct rip_db *db, size_t *iter, const struct rip_route_descrip
 	return false;
 }
 
-bool rip_db_any_route_changed(struct rip_db *db) { return db->rounte_changed_cnt != 0; }
+bool rip_db_any_route_changed(struct rip_db *db) { return db->any_route_changed; }
 
-void rip_db_mark_route_as_unchanged(struct rip_db *db, struct rip_route_description *entry)
+void rip_db_mark_all_routes_as_unchanged(struct rip_db *db)
 {
-	if (entry->changed) {
-		entry->changed = false;
-		--db->rounte_changed_cnt;
-		LOG_INFO("route changed cnt: %d", db->rounte_changed_cnt);
+	if (db->any_route_changed) {
+		LOG_INFO("%s", __func__);
+		
+		size_t			      iter  = 0;
+		struct rip_route_description *entry = NULL;
+
+		while (hashmap_iter(db->added_routes, &iter, (void **)&entry)) {
+			entry->changed = false;
+		}
+		db->any_route_changed = false;
 	}
 }
