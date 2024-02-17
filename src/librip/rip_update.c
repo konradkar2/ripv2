@@ -25,6 +25,11 @@ void print_n_buffer(struct msg_buffer *buffer, size_t n_entries)
 
 static int rip_send(int fd, struct in_addr destination, struct msg_buffer *buffer, size_t n_entries)
 {
+	if (n_entries == 0) {
+		LOG_INFO("%s: 0 entries", __func__);
+		return 0;
+	}
+
 	LOG_INFO("%s to %s, fd: %d", __func__, inet_ntoa(destination), fd);
 
 	print_n_buffer(buffer, n_entries);
@@ -58,7 +63,7 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 			      size_t *n_entries, const struct rip_advertising_policy policy)
 {
 	size_t				    buffer_entry_cnt = 0;
-	size_t				    db_iter	      = 0;
+	size_t				    db_iter	     = 0;
 	const struct rip_route_description *route;
 	while (rip_db_iter(db, &db_iter, &route)) {
 
@@ -129,7 +134,7 @@ int rip_send_request_multicast(struct rip_context *ctx)
 	MEMSET_ZERO(&buffer);
 
 	buffer.header.version = 2;
-	buffer.header.command = RIP_CMD_RESPONSE;
+	buffer.header.command = RIP_CMD_REQUEST;
 	size_t n_entries      = 1;
 	buffer.entries[0]     = (struct rip2_entry){.metric = htonl(16)};
 
@@ -153,7 +158,7 @@ static bool is_initial_request(struct rip2_entry entries[], size_t n_entry)
 int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
 				   struct in_addr sender_addr, int origin_if_index)
 {
-	LOG_INFO("%s", __func__);
+	LOG_INFO("%s to %s", __func__, inet_ntoa(sender_addr));
 
 	if (n_entry == 0) {
 		LOG_ERR("Invalid request from %s", inet_ntoa(sender_addr));

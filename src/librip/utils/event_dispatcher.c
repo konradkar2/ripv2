@@ -112,7 +112,7 @@ int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 			return 1;
 		}
 
-		LOG_INFO("\"%s\" event on fd: %d", event->name, fd);
+		//LOG_INFO("\"%s\" event on fd: %d", event->name, fd);
 		event->cb(event);
 	}
 
