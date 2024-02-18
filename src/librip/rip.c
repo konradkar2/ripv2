@@ -260,3 +260,30 @@ int rip_begin(struct rip_context *ctx)
 
 	return rip_handle_events(ctx);
 }
+
+static void rip_clear_routing_table(struct rip_context *rip_ctx)
+{
+	LOG_INFO("%s", __func__);
+
+	size_t				    db_iter = 0;
+	const struct rip_route_description *route;
+	while (rip_db_iter(&rip_ctx->rip_db, &db_iter, &route)) {
+		//skip local addresses
+		if(route->entry.next_hop.s_addr == 0){
+			continue;
+		}
+
+		if (rip_route_delete_route(rip_ctx->route_mngr, route)) {
+			LOG_ERR("failed to delete route");
+			rip_route_description_print(route, stdout);
+		}
+	}
+}
+
+void rip_cleanup(struct rip_context *ctx)
+{
+	LOG_INFO("%s", __func__);
+
+	rip_send_advertisement_shutdown(ctx);
+	rip_clear_routing_table(ctx);
+}

@@ -27,5 +27,6 @@ struct rip_context {
 };
 
 int rip_begin(struct rip_context *rip_ctx);
+void rip_cleanup(struct rip_context * rip_ctx);
 
 #endif

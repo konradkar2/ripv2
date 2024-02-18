@@ -195,3 +195,16 @@ cleanup:
 	close(socket.fd);
 	return ret;
 }
+
+void rip_send_advertisement_shutdown(struct rip_context *ctx)
+{
+	size_t			      db_iter = 0;
+	struct rip_route_description *route;
+
+	// ugly cast but this is shutdown, so who cares
+	while (rip_db_iter(&ctx->rip_db, &db_iter, (const struct rip_route_description **)&route)) {
+		route->entry.metric = htonl(16);
+	}
+
+	rip_send_advertisement_multicast(ctx, false);
+}
