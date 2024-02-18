@@ -3,26 +3,29 @@
 
 #include <stdio.h>
 
-#define LOG_ERR(...)                                                                               \
+// e.g. 11:11:52
+void get_time(char *buff, size_t size);
+
+#define __LOG_FUNC__(format, loglevel, ...)                                                        \
 	do {                                                                                       \
-		fprintf(stdout, "ERROR %s: ", __func__);                                         \
-		fprintf(stdout, __VA_ARGS__);                                                      \
-		fprintf(stdout, "\n");                                                             \
+		char buff[20] = {0};                                                               \
+		get_time(buff, sizeof(buff));                                                      \
+		printf("%s %s %s:" format "\n", buff, loglevel, __func__, ##__VA_ARGS__);          \
 		fflush(stdout);                                                                    \
 	} while (0)
 
-#define LOG_TRACE()                                                                                \
+#define __LOG__(format, loglevel, ...)                                                             \
 	do {                                                                                       \
-		fprintf(stdout, "%s:%d", __FILE__, __LINE__);                                      \
-		fprintf(stdout, "\n");                                                             \
+		char buff[20] = {0};                                                               \
+		get_time(buff, sizeof(buff));                                                      \
+		printf("%s %s: " format "\n", buff, loglevel, ##__VA_ARGS__);                      \
 		fflush(stdout);                                                                    \
 	} while (0)
 
-#define LOG_INFO(...)                                                                              \
-	do {                                                                                       \
-		fprintf(stdout, "INFO: " __VA_ARGS__);                                             \
-		fprintf(stdout, "\n");                                                             \
-		fflush(stdout);                                                                    \
-	} while (0)
+// Specific log macros with
+#define LOG_DEBUG(format, ...) __LOG_FUNC__(format, "DEBUG", ##__VA_ARGS__)
+#define LOG_WARN(format, ...) __LOG_FUNC__(format, "WARN", ##__VA_ARGS__)
+#define LOG_ERR(format, ...) __LOG_FUNC__(format, "ERROR", ##__VA_ARGS__)
+#define LOG_INFO(format, ...) __LOG__(format, "INFO", ##__VA_ARGS__)
 
 #endif

@@ -86,6 +86,9 @@ int rip_db_add(struct rip_db *db, struct rip_route_description *entry)
 	}
 
 	db->any_route_changed = true;
+
+	LOG_INFO("%s: ", __func__);
+	rip_route_description_print(entry, stdout);
 	return 0;
 }
 

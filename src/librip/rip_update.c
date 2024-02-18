@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <utils/network/socket.h>
 
-void print_n_buffer(struct msg_buffer *buffer, size_t n_entries)
+void print_buffer(struct msg_buffer *buffer, size_t n_entries)
 {
 	for (size_t i = 0; i < n_entries; ++i) {
 		rip2_entry_print(buffer->entries[i], stdout);
@@ -31,7 +31,7 @@ static int rip_send(int fd, struct in_addr destination, struct msg_buffer *buffe
 
 	LOG_INFO("%s to %s, fd: %d", __func__, inet_ntoa(destination), fd);
 
-	print_n_buffer(buffer, n_entries);
+	print_buffer(buffer, n_entries);
 
 	struct sockaddr_in socket_address;
 	MEMSET_ZERO(&socket_address);
@@ -96,7 +96,6 @@ int rip_send_response(struct msg_buffer *buffer, const struct rip_socket *socket
 
 	size_t n_entries = 0;
 	fill_buffer_with_entries(socket->if_index, db, buffer, &n_entries, policy);
-	rip_db_mark_all_routes_as_unchanged(db);
 	return rip_send(socket->fd, destination, buffer, n_entries);
 }
 
@@ -121,6 +120,7 @@ int rip_send_advertisement_multicast(struct rip_context *ctx, bool advertise_onl
 		ret |= rip_send_response(&buffer, socket, rip_address_n, &ctx->rip_db, policy);
 	}
 
+	rip_db_mark_all_routes_as_unchanged(&ctx->rip_db);
 	return ret;
 }
 

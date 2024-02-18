@@ -15,6 +15,7 @@ add_library(librip
         utils/timer.c
         utils/event_dispatcher.c
         utils/utils.c
+        utils/logging.c
         rip.c
         rip_recv.c
         rip_route.c

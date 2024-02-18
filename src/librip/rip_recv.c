@@ -45,7 +45,6 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 		return 1;
 	}
 
-	rip_route_description_print(new_route, stdout);
 	return 0;
 }
 
