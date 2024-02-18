@@ -26,7 +26,7 @@ bool is_entry_valid(struct rip2_entry *entry)
 	if (!is_unicast_address(entry->ip_address) || !is_net_mask_valid(entry->subnet_mask) ||
 	    !is_metric_valid(entry->metric)) {
 		LOG_ERR("Invalid entry:");
-		rip2_entry_print(entry, stdout);
+		rip2_entry_print(*entry, stdout);
 		return false;
 	}
 
@@ -45,6 +45,7 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 		return 1;
 	}
 
+	rip_route_description_print(new_route, stdout);
 	return 0;
 }
 
@@ -83,8 +84,8 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	if (false == is_entry_valid(entry)) {
 		return 0;
 	}
-
 	update_metric(&entry->metric);
+	rip2_entry_hton(entry);
 
 	build_route_description(entry, sender_addr, if_index, &incoming_route);
 	old_route = (struct rip_route_description *)rip_db_get(db, &incoming_route);

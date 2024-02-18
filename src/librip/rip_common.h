@@ -38,8 +38,8 @@ struct msg_buffer {
 void rip2_entry_ntoh(struct rip2_entry *);
 void rip2_entry_hton(struct rip2_entry *);
 
-void rip_header_print(const struct rip_header *);
-void rip2_entry_print(const struct rip2_entry *, FILE *file);
+void rip_header_print(struct rip_header);
+void rip2_entry_print(struct rip2_entry, FILE *file);
 
 static_assert(sizeof(struct rip_header) == 4, "");
 static_assert(sizeof(struct rip2_entry) == 20, "");

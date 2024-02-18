@@ -2,6 +2,7 @@
 #include "rip.h"
 #include "rip_common.h"
 #include "rip_db.h"
+#include "rip_socket.h"
 #include "utils/logging.h"
 #include "utils/timer.h"
 #include "utils/utils.h"
@@ -16,10 +17,8 @@
 void print_n_buffer(struct msg_buffer *buffer, size_t n_entries)
 {
 	for (size_t i = 0; i < n_entries; ++i) {
-		rip2_entry_ntoh(&buffer->entries[i]);
-		rip2_entry_print(&buffer->entries[i], stdout);
+		rip2_entry_print(buffer->entries[i], stdout);
 		printf("\n");
-		rip2_entry_hton(&buffer->entries[i]);
 	}
 }
 
@@ -78,7 +77,6 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 		if (route->if_index != if_index_dest) {
 			memcpy(buffer_entry, &route->entry, sizeof(struct rip2_entry));
 			buffer_entry->next_hop.s_addr = 0;
-			rip2_entry_hton(buffer_entry);
 			++buffer_entry_cnt;
 		} else {
 			if (policy.neigbour_policy == rip_neighbour_split_horizon) {
@@ -152,20 +150,21 @@ int rip_send_request_multicast(struct rip_context *ctx)
 
 static bool is_initial_request(struct rip2_entry entries[], size_t n_entry)
 {
-	return n_entry == 1 && entries[0].metric >= 16 && entries[0].routing_family_id == 0;
+	return n_entry == 1 && ntohl(entries[0].metric) >= 16 &&
+	       htons(entries[0].routing_family_id) == 0;
 }
 
 int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
 				   struct in_addr sender_addr, int origin_if_index)
 {
 	LOG_INFO("%s to %s", __func__, inet_ntoa(sender_addr));
+	int ret = 0;
 
 	if (n_entry == 0) {
 		LOG_ERR("Invalid request from %s", inet_ntoa(sender_addr));
 		return 1;
 	}
 
-	rip2_entry_ntoh(&entries[0]);
 	if (!is_initial_request(entries, n_entry)) {
 		LOG_ERR("3.9.1 debug request not implemented");
 		return 1;
@@ -177,18 +176,22 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 	buffer.header.version = 2;
 	buffer.header.command = RIP_CMD_RESPONSE;
 
-	int fd = 0;
-	if (socket_create_udp_socket(&fd)) {
-		LOG_ERR("socket_create_udp_socket");
-		return 1;
+	struct rip_socket socket = {0};
+	if (rip_create_socket_ifindex(&socket, origin_if_index)) {
+		ret = 1;
+		goto cleanup;
+	}
+	if (rip_setup_tx_socket(&socket)) {
+		ret = 1;
+		goto cleanup;
 	}
 
-	struct rip_socket	      socket = {.fd = fd, .if_index = origin_if_index};
 	struct rip_advertising_policy policy = {.neigbour_policy = rip_neighbour_split_horizon,
 						.advertise_only_changed = false};
 
-	int ret = rip_send_response(&buffer, &socket, sender_addr, db, policy);
+	ret = rip_send_response(&buffer, &socket, sender_addr, db, policy);
 
-	close(fd);
+cleanup:
+	close(socket.fd);
 	return ret;
 }

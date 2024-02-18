@@ -40,9 +40,9 @@ def test_contains_advertised_routes_learned(test_env):
     rip_routes = rip_routes_stdout.split('\r\n')
     assert(len(rip_routes) == 5) # 3 learned, 2 static
 
-    assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.5.0/24, nh 10.0.3.4, metric 3" in rip_routes)
-    assert("ifi 3, dev eth1, rfamily_id 2, rtag 512, network 10.0.4.0/24, nh 10.0.3.4, metric 2" in rip_routes)
-    assert("ifi 2, dev eth0, rfamily_id 2, rtag 512, network 10.0.1.0/24, nh 10.0.2.2, metric 2" in rip_routes)
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.5.0/24, nh 10.0.3.4, metric 3" in rip_routes)
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.4.0/24, nh 10.0.3.4, metric 2" in rip_routes)
+    assert("ifi 2, dev eth0, rfamily_id 2, rtag 0, network 10.0.1.0/24, nh 10.0.2.2, metric 2" in rip_routes)
 
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_static(test_env):
@@ -50,8 +50,8 @@ def test_contains_advertised_routes_static(test_env):
     rip_routes = rip_routes_stdout.split('\r\n')
     assert(len(rip_routes) == 5) # 3 learned, 2 static
 
-    assert("ifi 2, dev eth0, rfamily_id 2, rtag 10, network 10.0.2.0/24, nh 0.0.0.0, metric 1" in rip_routes)
-    assert("ifi 3, dev eth1, rfamily_id 2, rtag 10, network 10.0.3.0/24, nh 0.0.0.0, metric 1" in rip_routes)
+    assert("ifi 2, dev eth0, rfamily_id 2, rtag 0, network 10.0.2.0/24, nh 0.0.0.0, metric 1" in rip_routes)
+    assert("ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.3.0/24, nh 0.0.0.0, metric 1" in rip_routes)
 
 def remove_last_line_if_empty(lines):
     if lines and not lines[-1].strip():

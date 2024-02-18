@@ -166,9 +166,10 @@ static int add_advertised_network_to_db(struct rip_db			*db,
 	entry->ip_address.s_addr = entry->ip_address.s_addr & entry->subnet_mask.s_addr;
 	entry->next_hop.s_addr	 = 0;
 	entry->routing_family_id = AF_INET;
-	entry->route_tag	 = 10; // arbitrary number
+	entry->route_tag	 = 0; // arbitrary number
 	entry->metric		 = 1;
 
+	rip2_entry_hton(entry);
 	if (rip_db_add(db, &desc)) {
 		return 1;
 	}
@@ -215,7 +216,7 @@ int rip_begin(struct rip_context *ctx)
 	}
 	rip_configuration_print(&ctx->config);
 
-	if (rip_set_if_index_to_sockets(&ctx->config, &ctx->rip_ifcs, &ctx->rip_ifcs_n)) {
+	if (rip_create_sockets(&ctx->config, &ctx->rip_ifcs, &ctx->rip_ifcs_n)) {
 		return 1;
 	}
 
