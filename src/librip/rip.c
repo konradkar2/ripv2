@@ -31,11 +31,11 @@ static float create_t_update_time(void)
 	return 27.5 + get_random_float(2.5, 7.5);
 }
 
-static int rip_handle_t_update(const struct event *event)
+static int rip_t_update_expired(const struct event *event)
 {
 	struct rip_context *ctx = event->arg;
 	if (timer_clear(&ctx->timers.t_update)) {
-		return 1;
+		PANIC(1);
 	}
 
 	if (rip_send_advertisement_multicast(ctx, false)) {
@@ -45,9 +45,31 @@ static int rip_handle_t_update(const struct event *event)
 
 	if (timer_start_oneshot(&ctx->timers.t_update, create_t_update_time())) {
 		LOG_ERR("timer_start_oneshot");
-		return 1;
+		PANIC(1);
 	}
 
+	return 0;
+}
+
+static int rip_t_request_warmup_expired(const struct event *event)
+{
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->timers.t_request_warmup)) {
+		PANIC(1);
+	}
+
+	rip_send_request_multicast(ctx);
+	return 0;
+}
+
+static int rip_t_triggered_lock_expired(const struct event *event)
+{
+	LOG_INFO("%s", __func__);
+
+	struct timer *t_triggered_lock = event->arg;
+	if (timer_clear(t_triggered_lock)) {
+		PANIC(1);
+	}
 	return 0;
 }
 
@@ -75,22 +97,6 @@ int check_route_changed(struct rip_context *ctx)
 	return 0;
 }
 
-static int rip_handle_t_triggered_lock(const struct event *event)
-{
-	LOG_INFO("rip_handle_t_triggered_lock");
-
-	struct rip_context *ctx = event->arg;
-	if (timer_clear(&ctx->timers.t_triggered_lock)) {
-		return 1;
-	}
-
-	if (check_route_changed(ctx)) {
-		return 1;
-	}
-
-	return 0;
-}
-
 static int init_event_dispatcher(struct rip_context *ctx)
 {
 	struct event_dispatcher *ed = &ctx->event_dispatcher;
@@ -112,9 +118,11 @@ static int init_event_dispatcher(struct rip_context *ctx)
 	    {rip_ipc_getfd(ctx->ipc_mngr), rip_ipc_handle_event, ctx->ipc_mngr, "ipc"},
 	    {rip_route_getfd(ctx->route_mngr), rip_route_handle_event, ctx->route_mngr,
 	     "route_table_update"},
-	    {ctx->timers.t_update.fd, rip_handle_t_update, ctx, "t_update"},
-	    {ctx->timers.t_triggered_lock.fd, rip_handle_t_triggered_lock, ctx,
-	     "t_triggered_lock"}};
+	    {timer_getfd(&ctx->timers.t_update), rip_t_update_expired, ctx, "t_update"},
+	    {timer_getfd(&ctx->timers.t_triggered_lock), rip_t_triggered_lock_expired,
+	     &ctx->timers.t_triggered_lock, "t_triggered_lock"},
+	    {timer_getfd(&ctx->timers.t_request_warmup), rip_t_request_warmup_expired, ctx,
+	     "t_request_warmup"}};
 
 	if (event_dispatcher_register_many(ed, events, ARRAY_LEN(events))) {
 		return 1;
@@ -201,6 +209,12 @@ static int rip_init_timers(struct rip_timers *timers)
 		return 1;
 	}
 
+	if (timer_init(&timers->t_request_warmup) ||
+	    timer_start_oneshot(&timers->t_request_warmup, get_random_float(0.5, 1.0))) {
+		LOG_ERR("t_request_warmup");
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -254,10 +268,6 @@ int rip_begin(struct rip_context *ctx)
 		return 1;
 	}
 
-	if (rip_send_request_multicast(ctx)) {
-		return 1;
-	}
-
 	return rip_handle_events(ctx);
 }
 
@@ -268,8 +278,8 @@ static void rip_clear_routing_table(struct rip_context *rip_ctx)
 	size_t				    db_iter = 0;
 	const struct rip_route_description *route;
 	while (rip_db_iter(&rip_ctx->rip_db, &db_iter, &route)) {
-		//skip local addresses
-		if(route->entry.next_hop.s_addr == 0){
+		// skip local addresses
+		if (route->entry.next_hop.s_addr == 0) {
 			continue;
 		}
 

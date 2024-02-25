@@ -41,6 +41,9 @@ RUN sudo apt-get update && sudo apt-get install frr frr-pythontools -yq
 
 #Munet
 RUN pip install munet 
+#hack to enable IPC namespace, as POSIX message_queue is not seperated which causes tests to fail
+#reasons: author did not provide easy way to install the package from source code...
+RUN sed -i 's/ipc=False/ipc=True/g' /usr/local/lib/python3.10/dist-packages/munet/base.py
 
 RUN pip install pytest retry
 

@@ -18,6 +18,11 @@ struct rip_context {
 	struct rip_timers {
 		struct timer t_update;
 		struct timer t_triggered_lock;
+
+		//warmup timer to send multicast request
+		//this is to not miss any request when
+		//starting rip processes at the same time
+		struct timer t_request_warmup;
 	} timers;
 
 	struct rip_route_mngr *route_mngr;

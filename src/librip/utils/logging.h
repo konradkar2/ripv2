@@ -22,7 +22,6 @@ void get_time(char *buff, size_t size);
 		fflush(stdout);                                                                    \
 	} while (0)
 
-// Specific log macros with
 #define LOG_DEBUG(format, ...) __LOG_FUNC__(format, "DEBUG", ##__VA_ARGS__)
 #define LOG_WARN(format, ...) __LOG_FUNC__(format, "WARN", ##__VA_ARGS__)
 #define LOG_ERR(format, ...) __LOG_FUNC__(format, "ERROR", ##__VA_ARGS__)

@@ -6,6 +6,7 @@
 #include "rip_update.h"
 #include "stdint.h"
 #include "stdio.h"
+#include "utils/event.h"
 #include "utils/logging.h"
 #include "utils/utils.h"
 #include <endian.h>
@@ -154,10 +155,7 @@ int rip_handle_message_event(const struct event *event)
 	struct rip_context	*rip_ctx = event->arg;
 	const struct rip_socket *socket =
 	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
-
-	if (!socket) {
-		BUG();
-	}
+	RIP_ASSERT(socket != NULL);
 
 	struct msg_buffer msg_buffer;
 	struct in_addr	  sender;

@@ -1,4 +1,5 @@
 #include "rip_ipc.h"
+#include "utils/event.h"
 #include "utils/logging.h"
 #include "utils/utils.h"
 #include <errno.h>
@@ -16,10 +17,10 @@
 #define QUEUE_PERMISSIONS 0660;
 
 struct rip_ipc {
-	mqd_t fd;
+	mqd_t			  fd;
 	struct r_ipc_cmd_handler *cmd_h;
-	size_t cmd_h_len;
-	const char *queue_name;
+	size_t			  cmd_h_len;
+	const char		 *queue_name;
 };
 
 static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri, enum rip_ipc_cmd cmd)
@@ -34,7 +35,7 @@ static struct r_ipc_cmd_handler *find_handler(const struct rip_ipc *ri, enum rip
 }
 
 static struct rip_ipc *rip_ipc_alloc(void) { return CALLOC(sizeof(struct rip_ipc)); }
-void rip_ipc_free(struct rip_ipc *ri)
+void		       rip_ipc_free(struct rip_ipc *ri)
 {
 	if (ri->fd > 0) {
 		mq_close(ri->fd);
@@ -46,11 +47,11 @@ void rip_ipc_free(struct rip_ipc *ri)
 struct rip_ipc *rip_ipc_alloc_init(struct r_ipc_cmd_handler handlers[], size_t len)
 {
 	struct rip_ipc *ri = NULL;
-	mqd_t fd;
-	struct mq_attr attr = {
-	    .mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = REQ_BUFFER_SIZE};
-	mode_t permission  = QUEUE_PERMISSIONS;
-	const char *q_name = RIP_DEAMON_QUEUE;
+	mqd_t		fd;
+	struct mq_attr	attr = {
+	     .mq_curmsgs = 0, .mq_flags = 0, .mq_maxmsg = 10, .mq_msgsize = REQ_BUFFER_SIZE};
+	mode_t	    permission = QUEUE_PERMISSIONS;
+	const char *q_name     = RIP_DEAMON_QUEUE;
 
 	ri = rip_ipc_alloc();
 	if (!ri) {
@@ -64,6 +65,7 @@ struct rip_ipc *rip_ipc_alloc_init(struct r_ipc_cmd_handler handlers[], size_t l
 		return NULL;
 	}
 
+	LOG_INFO("IPC initialized, queue name: %s, fd : %d", q_name, fd);
 	ri->fd	       = fd;
 	ri->cmd_h      = handlers;
 	ri->cmd_h_len  = len;
@@ -75,24 +77,20 @@ int rip_ipc_getfd(struct rip_ipc *ri) { return ri->fd; }
 
 int rip_ipc_handle_event(const struct event *event)
 {
-	struct rip_ipc *ri = event->arg;
+	int		ret = 0;
+	struct rip_ipc *ri  = event->arg;
 
-	int ret = 0;
-	ssize_t n_bytes;
-	mqd_t cli_q			     = 0;
-	char ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
-	struct ipc_request *req;
+	ssize_t			  n_bytes;
+	mqd_t			  cli_q				  = 0;
+	char			  ipc_req_buffer[REQ_BUFFER_SIZE] = {0};
+	struct ipc_request	 *req;
 	struct r_ipc_cmd_handler *hl;
-	struct ipc_response *response = NULL;
-	enum r_cmd_status status      = r_cmd_status_failed;
-	FILE *buffer_stream	      = NULL;
+	struct ipc_response	 *response	= NULL;
+	enum r_cmd_status	  status	= r_cmd_status_failed;
+	FILE			 *buffer_stream = NULL;
 
 	n_bytes = mq_receive(ri->fd, ipc_req_buffer, REQ_BUFFER_SIZE, NULL);
-	if (n_bytes < 0) {
-		LOG_ERR("mq_receive failed: %s", strerror(errno));
-		ret = 1;
-		goto cleanup;
-	}
+	RIP_ASSERT(n_bytes >= 0);
 
 	cli_q = mq_open(RIP_CLI_QUEUE, O_WRONLY);
 	if (cli_q == -1) {
@@ -133,6 +131,7 @@ int rip_ipc_handle_event(const struct event *event)
 
 	if (status != r_cmd_status_success) {
 		LOG_ERR("Failed to execute: %d", hl->cmd);
+		ret = 1;
 	}
 
 	response->cmd_status = status;
@@ -143,23 +142,26 @@ int rip_ipc_handle_event(const struct event *event)
 
 cleanup:
 	free(response);
-	fclose(buffer_stream);
-	mq_close(cli_q);
-
+	if (buffer_stream) {
+		fclose(buffer_stream);
+	}
+	if (cli_q) {
+		mq_close(cli_q);
+	}
 	return ret;
 }
 
 struct rip_ipc *cli_rip_ipc_alloc_init(void)
 {
 	struct rip_ipc *ri = NULL;
-	mqd_t fd;
-	struct mq_attr attr = {.mq_curmsgs = 0,
-			       .mq_flags   = 0,
-			       .mq_maxmsg  = 10,
-			       .mq_msgsize = sizeof(struct ipc_response)};
+	mqd_t		fd;
+	struct mq_attr	attr = {.mq_curmsgs = 0,
+				.mq_flags   = 0,
+				.mq_maxmsg  = 10,
+				.mq_msgsize = sizeof(struct ipc_response)};
 
-	mode_t permission  = QUEUE_PERMISSIONS;
-	const char *q_name = RIP_CLI_QUEUE;
+	mode_t	    permission = QUEUE_PERMISSIONS;
+	const char *q_name     = RIP_CLI_QUEUE;
 
 	ri = rip_ipc_alloc();
 	if (!ri) {

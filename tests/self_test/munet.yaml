@@ -1,35 +1,10 @@
 version: 1
 kinds:
-  - name: frr
-    cmd: |
-      chown frr:frr -R /var/run/frr
-      chown frr:frr -R /var/log/frr
-      touch /var/log/frr/traffic.pcap
-      chmod o=rw /var/log/frr/traffic.pcap
-      sudo tshark -i any -w /var/log/frr/traffic.pcap &
-      sleep 1
-      /usr/lib/frr/frrinit.sh start
-      tail -F /var/log/frr/frr.log
-    cleanup-cmd: |
-      /usr/lib/frr/frrinit.sh stop
-      pkill tshark
-    volumes:
-      - "./%NAME%/etc.frr:/etc/frr"
-      - "%RUNDIR%/var.log.frr:/var/log/frr"
-      - "%RUNDIR%/var.run.frr:/var/run/frr"
-    cap-add:
-      - SYS_ADMIN
-      - AUDIT_WRITE
-    merge: ["volumes"]
   - name: ripv2
     cmd: |
-      echo "test!"
-      ip address add 10.0.2.3/24 dev eth0
-      ip address add 10.0.3.3/24 dev eth1
-      route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth0
-      route -n add -net 224.5.0.0 netmask 255.255.255.255 dev eth1
-      touch /var/log/rip/rip.log
+      /etc/rip/network_init.sh
       tshark -i any -w /var/log/rip/traffic.pcap &
+      sleep 1
       rip >> /var/log/rip/rip.log 2>&1 &
     cleanup-cmd: |
       pkill rip
@@ -55,22 +30,22 @@ topology:
       ip: 10.0.5.254/24
   nodes:
     - name: r1
-      kind: frr
+      kind: ripv2
       connections: ["net1"]
     - name: r2
-      kind: frr
+      kind: ripv2
       connections: ["net1", "net2"]
     - name: r3
       kind: ripv2
       connections: ["net2", "net3"]
     - name: r4
-      kind: frr
+      kind: ripv2
       connections: ["net3", "net4" ]
     - name: r5
-      kind: frr
+      kind: ripv2
       connections: ["net4", "net5"]
     - name: r6
-      kind: frr
+      kind: ripv2
       connections: ["net5"]
 cli:
   commands:

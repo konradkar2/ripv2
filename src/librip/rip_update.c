@@ -155,7 +155,7 @@ static bool is_initial_request(struct rip2_entry entries[], size_t n_entry)
 }
 
 int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
-				   struct in_addr sender_addr, int origin_if_index)
+				   struct in_addr sender_addr, int ifindex)
 {
 	LOG_INFO("%s to %s", __func__, inet_ntoa(sender_addr));
 	int ret = 0;
@@ -177,7 +177,7 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 	buffer.header.command = RIP_CMD_RESPONSE;
 
 	struct rip_socket socket = {0};
-	if (rip_create_socket_ifindex(&socket, origin_if_index)) {
+	if (rip_create_socket_ifindex(&socket, ifindex)) {
 		ret = 1;
 		goto cleanup;
 	}

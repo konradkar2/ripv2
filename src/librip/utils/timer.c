@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "utils/logging.h"
+#include "utils/utils.h"
 #include <bits/time.h>
 #include <bits/types/struct_itimerspec.h>
 #include <errno.h>
@@ -13,9 +14,7 @@
 
 int timer_init(struct timer *timer)
 {
-	if (timer->fd != 0) {
-		return 1;
-	}
+	RIP_ASSERT(timer->fd == 0);
 
 	int fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
 	if (fd == -1) {
@@ -23,10 +22,12 @@ int timer_init(struct timer *timer)
 		return 1;
 	}
 
-	timer->fd = fd;
+	timer->fd	  = fd;
 	timer->is_ticking = false;
 	return 0;
 }
+
+int timer_getfd(struct timer *timer) { return timer->fd; }
 
 static int timer_set(struct timer *t, struct itimerspec *tspec)
 {

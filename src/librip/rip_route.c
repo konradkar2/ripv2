@@ -1,4 +1,5 @@
 #include "rip_route.h"
+#include "utils/event.h"
 #include "utils/logging.h"
 #include "rip_common.h"
 #include "rip_ipc.h"
@@ -108,7 +109,7 @@ int rip_route_handle_event(const struct event *event)
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {
 		LOG_ERR("nl_cache_mngr_data_ready failed: %s", nl_geterror(err));
-		return 1;
+		PANIC(1);
 	}
 
 	return 0;

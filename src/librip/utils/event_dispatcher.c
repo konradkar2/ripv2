@@ -2,6 +2,7 @@
 #include "utils/event.h"
 #include "utils/hashmap.h"
 #include "utils/logging.h"
+#include "utils/utils.h"
 #include "utils/vector.h"
 #include <errno.h>
 #include <poll.h>
@@ -98,6 +99,7 @@ int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 
 	for (size_t i = 0; i < vector_get_len(pollfds_vec); ++i) {
 		struct pollfd *pollfd = vector_get(pollfds_vec, i);
+		RIP_ASSERT(pollfd != NULL);
 
 		int revents = pollfd->revents;
 		int fd	    = pollfd->fd;
@@ -112,7 +114,7 @@ int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 			return 1;
 		}
 
-		//LOG_INFO("\"%s\" event on fd: %d", event->name, fd);
+		LOG_DEBUG("\"%s\" event on fd: %d", event->name, fd);
 		event->cb(event);
 	}
 

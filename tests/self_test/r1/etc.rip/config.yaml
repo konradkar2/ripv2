@@ -1,0 +1,8 @@
+rip_configuration:
+  version: 2
+  rip_interfaces: 
+    - dev: eth0
+  advertised_networks: 
+    - address: "10.0.1.1"
+      prefix: 24
+      dev: eth0

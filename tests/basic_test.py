@@ -2,41 +2,39 @@
 import time
 import pytest
 from retry import retry
-from test_fixture import Host, has_connectivity, munet_environment, wait_for_frr
+from base import Host, munet_environment
+import conftest
 
-class test_basic_environment:
-    def __init__(self):
-        
-        self.munet_env = munet_environment("test_basic")
-        self.munet_ifc = self.munet_env.munet_ifc
 
-        self.r1 = Host("r1", self.munet_ifc, "10.0.1.1")
-        self.r2 = Host("r2", self.munet_ifc, "10.0.2.2")
-        self.r3 = Host("r3", self.munet_ifc, "10.0.3.3")
-        self.r4 = Host("r4", self.munet_ifc, "10.0.3.4")
-        self.r5 = Host("r5", self.munet_ifc, "10.0.5.5")
-        self.r6 = Host("r6", self.munet_ifc, "10.0.5.6")
-        wait_for_frr(self.r4, self.r6)
-        time.sleep(1)
+class test_basic_environment(munet_environment):
+    def __init__(self, name: str):
 
-        if not has_connectivity(self.r3, self.r4):
-            raise Exception("somehow r3 can't reach r4")
-
-        time.sleep(1)
+        hostMapping = {
+        "r1": "10.0.1.1",
+        "r2": "10.0.2.2",
+        "r3": "10.0.3.3",
+        "r4": "10.0.3.4",
+        "r5": "10.0.5.5",
+        "r6": "10.0.5.6"
+        }
+        super().__init__(name, hostMapping)
+       
+        if not self.two_hosts_have_connectivity("r3", "r4"):
+            raise Exception("r3 can't reach r4")
         
     def __del__(self):
-        self.munet_env.show_logs(self.r3.name)
+        self.show_logs("r3")
  
 @pytest.fixture(scope="module")
-def test_env():
-    return test_basic_environment()
+def test_env(pytestconfig):
+    return test_basic_environment(pytestconfig.getoption("name"))
 
 def test_simple(test_env):
     assert 1 == 1
 
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_learned(test_env):
-    rip_routes_stdout = test_env.r3.execute_shell("rip-cli -r").strip()
+    rip_routes_stdout = test_env.hosts["r3"].execute_shell("rip-cli -r").strip()
     rip_routes = rip_routes_stdout.split('\r\n')
     assert(len(rip_routes) == 5) # 3 learned, 2 static
 
@@ -46,7 +44,7 @@ def test_contains_advertised_routes_learned(test_env):
 
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_static(test_env):
-    rip_routes_stdout = test_env.r3.execute_shell("rip-cli -r").strip()
+    rip_routes_stdout = test_env.hosts["r3"].execute_shell("rip-cli -r").strip()
     rip_routes = rip_routes_stdout.split('\r\n')
     assert(len(rip_routes) == 5) # 3 learned, 2 static
 
@@ -60,7 +58,7 @@ def remove_last_line_if_empty(lines):
 
 @retry(AssertionError, tries=5, delay=5.0)
 def test_contains_advertised_routes_libnl(test_env):
-    nl_routes_stdout = test_env.r3.execute_shell("rip-cli -n").strip()
+    nl_routes_stdout = test_env.hosts["r3"].execute_shell("rip-cli -n").strip()
     nl_routes_routes = nl_routes_stdout.split('\r\n')
     #liblns dumping functionality adds extra new line, so remove it
     nl_routes_routes = remove_last_line_if_empty(nl_routes_routes)
@@ -71,10 +69,9 @@ def test_contains_advertised_routes_libnl(test_env):
     assert("inet 10.0.5.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
     assert(len(nl_routes_routes) == 3)
 
-@retry(AssertionError, tries=10, delay=5.0)
 def test_connectivity(test_env):
-    assert has_connectivity(test_env.r1, test_env.r6)
-    assert has_connectivity(test_env.r1, test_env.r5)
-    assert has_connectivity(test_env.r2, test_env.r5)
-    assert has_connectivity(test_env.r2, test_env.r4)
+    assert test_env.hosts_have_connectivity()
+
+def test_remove_dead_routes(test_env):
+    test_env.hosts["r6"].execute_shell("pkill frr")
 
