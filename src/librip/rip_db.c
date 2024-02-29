@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
-#include <utils/vector.h>
 
 #define VALUE_FIELD_CMP(obj_a, obj_b, field)                                                       \
 	if (obj_a->field != obj_b->field) {                                                        \
