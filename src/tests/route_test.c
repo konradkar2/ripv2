@@ -37,7 +37,7 @@ REGISTER_TEST(rip_route_test_add_delete)
 {
 	ASSERT(init_env() == 0);
 	struct rip_route_mngr *mngr = NULL;
-	mngr			    = rip_route_alloc_init();
+	mngr			    = rip_route_init();
 	assert(mngr);
 
 	struct rip_route_description route;

@@ -51,23 +51,17 @@ def test_contains_advertised_routes_static(test_env):
     assert("ifi 2, dev eth0, rfamily_id 2, rtag 0, network 10.0.2.0/24, nh 0.0.0.0, metric 1" in rip_routes)
     assert("ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.3.0/24, nh 0.0.0.0, metric 1" in rip_routes)
 
-def remove_last_line_if_empty(lines):
-    if lines and not lines[-1].strip():
-        lines.pop()
-    return lines
 
 @retry(AssertionError, tries=5, delay=5.0)
-def test_contains_advertised_routes_libnl(test_env):
-    nl_routes_stdout = test_env.hosts["r3"].execute_shell("rip-cli -n").strip()
-    nl_routes_routes = nl_routes_stdout.split('\r\n')
-    #liblns dumping functionality adds extra new line, so remove it
-    nl_routes_routes = remove_last_line_if_empty(nl_routes_routes)
-    nl_routes_routes = [s.strip() for s in nl_routes_routes]
-
-    assert("inet 10.0.1.0/24 table main type unicast via 10.0.2.2 dev eth0" in nl_routes_routes)
-    assert("inet 10.0.4.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
-    assert("inet 10.0.5.0/24 table main type unicast via 10.0.3.4 dev eth1" in nl_routes_routes)
-    assert(len(nl_routes_routes) == 3)
+def test_contains_advertised_routes_ip_route(test_env):
+    routes_stdout = test_env.hosts["r3"].execute_shell("ip route").strip()
+    routes = routes_stdout.split('\r\n')
+    routes = [s.strip() for s in routes]
+  
+    assert("10.0.1.0/24 via 10.0.2.2 dev eth0 proto rip metric 20" in routes)
+    assert("10.0.4.0/24 via 10.0.3.4 dev eth1 proto rip metric 20" in routes)
+    assert("10.0.5.0/24 via 10.0.3.4 dev eth1 proto rip metric 20" in routes)
+    assert(len(routes) == 7)
 
 def test_connectivity(test_env):
     assert test_env.hosts_have_connectivity()

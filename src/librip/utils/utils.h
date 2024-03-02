@@ -14,18 +14,21 @@
 
 #define MIN(a, b) (a < b ? a : b)
 #define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-#define PANIC(status)                                                                              \
+
+#define UNREACHABLE() __builtin_unreachable()
+
+#define PANIC()                                                                                    \
 	do {                                                                                       \
 		LOG_ERR("PANIC");                                                                  \
-		exit(status);                                                                      \
+		exit(1);                                                                           \
 	} while (0)
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define RIP_ASSERT(expr)                                                                           \
 	do {                                                                                       \
 		if (!(expr)) {                                                                     \
-			LOG_ERR("assert failed: %s %s:%d", #expr, __FILENAME__, __LINE__);             \
-			PANIC(1);                                                                  \
+			LOG_ERR("assert failed: %s %s:%d", #expr, __FILENAME__, __LINE__);         \
+			PANIC();                                                                   \
 		}                                                                                  \
 	} while (0)
 

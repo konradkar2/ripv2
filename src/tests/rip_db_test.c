@@ -5,30 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct rip_db *_rip_db_create(void)
-{
-	struct rip_db *db = NULL;
-	db		  = malloc(sizeof(struct rip_db));
-
-	if (db == NULL || rip_db_init(db)) {
-		printf("_rip_db_create: oom");
-		exit(1);
-	}
-
-	return db;
-}
-
-void rip_db_free(struct rip_db *db)
-{
-	assert(db);
-	rip_db_destroy(db);
-	free(db);
-}
-
 REGISTER_TEST(rip_db_add_test)
 {
-	struct rip_db *db = _rip_db_create();
-
+	struct rip_db *db = rip_db_init();
+	ASSERT(db);
+	
 	struct rip_route_description el = {.if_index = 5,
 					   .entry    = {
 						  .ip_address.s_addr  = 1234,
@@ -87,5 +68,36 @@ REGISTER_TEST(rip_db_add_test)
 		ASSERT(rip_db_add(db, &el_nexthop) == 0);
 		ASSERT(rip_db_add(db, &el_nexthop) == 1);
 	}
+	rip_db_free(db);
+}
+
+REGISTER_TEST(rip_db_iter_test)
+{
+	struct rip_db *db = rip_db_init();
+	ASSERT(db);
+	
+	struct rip_route_description el = {.if_index = 5,
+					   .entry    = {
+						  .ip_address.s_addr  = 1234,
+						  .next_hop.s_addr    = 2345,
+						  .subnet_mask.s_addr = 3456,
+					      }};
+
+	ASSERT(rip_db_add(db, &el) == 0);
+	{
+		struct rip_route_description element = el;
+		++element.if_index;
+		ASSERT(rip_db_add(db, &element) == 0);
+	}
+
+	struct rip_db_iter		    iter	    = {0};
+	const struct rip_route_description *current_element = NULL;
+	int				    count	    = 0;
+	while (rip_db_iter(db, &iter, &current_element)) {
+		ASSERT(current_element != NULL);
+		count++;
+	}
+	ASSERT(count == 2);
+
 	rip_db_free(db);
 }

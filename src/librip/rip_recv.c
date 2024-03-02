@@ -137,11 +137,10 @@ static size_t calculate_entries_count(size_t payload_size_bytes)
 	return (payload_size_bytes - sizeof(struct rip_header)) / sizeof(struct rip2_entry);
 }
 
-static struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t entries_n,
-						   const int fd)
+static struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc_vec *ifcs, const int fd)
 {
-	for (size_t i = 0; i < entries_n; ++i) {
-		struct rip_ifc *ifc = &ifcs[i];
+	for (size_t i = 0; i < ifcs->count; ++i) {
+		struct rip_ifc *ifc = &ifcs->items[i];
 		if (ifc->socket_rx.fd == fd) {
 			return &ifc->socket_rx;
 		}
@@ -153,8 +152,7 @@ static struct rip_socket *rip_find_rx_socket_by_fd(struct rip_ifc *ifcs, size_t 
 int rip_handle_message_event(const struct event *event)
 {
 	struct rip_context	*rip_ctx = event->arg;
-	const struct rip_socket *socket =
-	    rip_find_rx_socket_by_fd(rip_ctx->rip_ifcs, rip_ctx->rip_ifcs_n, event->fd);
+	const struct rip_socket *socket	 = rip_find_rx_socket_by_fd(&rip_ctx->rip_ifcs, event->fd);
 	RIP_ASSERT(socket != NULL);
 
 	struct msg_buffer msg_buffer;
@@ -167,10 +165,10 @@ int rip_handle_message_event(const struct event *event)
 	const size_t n_entries = calculate_entries_count(n_bytes);
 	switch (msg_buffer.header.command) {
 	case RIP_CMD_RESPONSE:
-		return rip_handle_response(rip_ctx->route_mngr, &rip_ctx->rip_db,
-					   msg_buffer.entries, n_entries, sender, socket->if_index);
+		return rip_handle_response(rip_ctx->route_mngr, rip_ctx->rip_db, msg_buffer.entries,
+					   n_entries, sender, socket->if_index);
 	case RIP_CMD_REQUEST:
-		return rip_send_advertisement_unicast(&rip_ctx->rip_db, msg_buffer.entries,
+		return rip_send_advertisement_unicast(rip_ctx->rip_db, msg_buffer.entries,
 						      n_entries, sender, socket->if_index);
 	default:
 		LOG_ERR("Unsupported rip command: %d", msg_buffer.header.command);

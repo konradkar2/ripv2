@@ -49,10 +49,6 @@ enum rip_route_learned_via {
 	rip_route_learned_via_rip,
 };
 
-struct rip_route_changed_cnt {
-	int value;
-};
-
 // Aggregate type for lookup
 // Check rip_db.c for which field is used for lookup and cannot be modified
 struct rip_route_description {
@@ -60,9 +56,12 @@ struct rip_route_description {
 	uint32_t		   if_index;
 	enum rip_route_learned_via learned_via;
 
-	// fields not used for hashmap comparison
-	bool			      changed;
-	struct rip_route_changed_cnt *changed_cnt;
+	/* fields not used for hashmap comparison */
+
+	// tracking for changed routes advertisement
+	bool changed;
+	// when reaches 180, begin deletion process
+	int timeout_cnt;
 };
 
 struct rip_socket {
@@ -74,6 +73,12 @@ struct rip_socket {
 struct rip_ifc {
 	struct rip_socket socket_rx;
 	struct rip_socket socket_tx;
+};
+
+struct rip_ifc_vec {
+	struct rip_ifc *items;
+	size_t		count;
+	size_t		capacity;
 };
 
 int  get_prefix_len(struct in_addr subnet_mask);

@@ -1,4 +1,5 @@
 #include "event_dispatcher.h"
+#include "utils/da_array.h"
 #include "utils/event.h"
 #include "utils/hashmap.h"
 #include "utils/logging.h"
@@ -6,7 +7,6 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/poll.h>
-#include "utils/da_array.h"
 
 static int event_cmp(const void *el_a, const void *el_b, void *udata)
 {
@@ -23,24 +23,47 @@ static uint64_t event_hash(const void *item, uint64_t seed0, uint64_t seed1)
 	return hashmap_sip(&event->fd, sizeof(event->fd), seed0, seed1);
 }
 
-int event_dispatcher_init(struct event_dispatcher *ed)
+struct event_dispatcher {
+	struct hashmap	  *events;
+	struct pollfds_vec pollfds;
+};
+
+struct event_dispatcher *event_dispatcher_init(void)
 {
-	MEMSET_ZERO(ed);
+	struct event_dispatcher *ed = CALLOC(sizeof(struct event_dispatcher));
+	if (!ed) {
+		LOG_ERR("calloc");
+		return NULL;
+	}
+
 	struct hashmap **events_map = &ed->events;
 
 	*events_map = hashmap_new(sizeof(struct event), 0, 0, 0, event_hash, event_cmp, NULL, NULL);
 	if (!*events_map) {
 		LOG_ERR("hashmap_new");
-		return 1;
+		event_dispatcher_free(ed);
+		return NULL;
 	}
 
-	return 0;
+	return ed;
+}
+
+void event_dispatcher_free(struct event_dispatcher *ed)
+{
+	if (!ed) {
+		return;
+	}
+
+	if (ed->events) {
+		hashmap_free(ed->events);
+	}
+	free(ed);
 }
 
 int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 {
-	struct hashmap *events_map  = ed->events;
-	
+	struct hashmap *events_map = ed->events;
+
 	if (hashmap_get(events_map, e) != NULL) {
 		LOG_ERR("event already registered, fd: %d", e->fd);
 		return 1;
@@ -57,10 +80,9 @@ int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 
 	struct pollfd pollfd = {.fd = e->fd, .events = POLLIN};
 	da_append(&ed->pollfds, pollfd);
-	if(!ed->pollfds.items)
-	{
-	 	LOG_ERR("vector_add, fd: %d", e->fd);
-	 	return 1;
+	if (!ed->pollfds.items) {
+		LOG_ERR("vector_add, fd: %d", e->fd);
+		return 1;
 	}
 
 	return 0;
@@ -79,19 +101,10 @@ int event_dispatcher_register_many(struct event_dispatcher *ed, struct event *ev
 	return 0;
 }
 
-void event_dispatcher_destroy(struct event_dispatcher *ed)
-{
-	if (!ed || !ed->events) {
-		return;
-	}
-
-	hashmap_free(ed->events);
-}
-
 int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 {
-	struct hashmap *events_map  = ed->events;
-	struct pollfds_vec  *pollfds = &ed->pollfds;
+	struct hashmap	   *events_map = ed->events;
+	struct pollfds_vec *pollfds    = &ed->pollfds;
 
 	if (-1 == poll(pollfds->items, pollfds->count, -1)) {
 		LOG_ERR("poll failed: %s", strerror(errno));

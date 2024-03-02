@@ -46,7 +46,7 @@ static void dump_caches(struct rip_route_mngr *rr, struct nl_dump_params *dump_p
 	free(filter);
 }
 
-struct rip_route_mngr *rip_route_alloc_init(void)
+struct rip_route_mngr *rip_route_init(void)
 {
 	struct rip_route_mngr *rr = NULL;
 	int ec;
@@ -109,7 +109,7 @@ int rip_route_handle_event(const struct event *event)
 	int err;
 	if ((err = nl_cache_mngr_data_ready(rr->mngr)) < 0) {
 		LOG_ERR("nl_cache_mngr_data_ready failed: %s", nl_geterror(err));
-		PANIC(1);
+		PANIC();
 	}
 
 	return 0;

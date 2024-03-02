@@ -12,26 +12,29 @@
 
 struct rip_context {
 	struct rip_configuration config;
-	struct rip_ifc *rip_ifcs;
-	size_t rip_ifcs_n;
-
+	struct rip_ifc_vec	 rip_ifcs;
+	
 	struct rip_timers {
 		struct timer t_update;
 		struct timer t_triggered_lock;
 
-		//warmup timer to send multicast request
-		//this is to not miss any request when
-		//starting rip processes at the same time
+		// warmup timer to send multicast request
+		// this is to not miss any request when
+		// starting rip processes at the same time
 		struct timer t_request_warmup;
+
+		// global timer instead of unique one per route
+		//  triggered every 30seconds
+		struct timer t_timeout;
 	} timers;
 
-	struct rip_route_mngr *route_mngr;
-	struct rip_ipc *ipc_mngr;
-	struct rip_db rip_db;
-	struct event_dispatcher event_dispatcher;
+	struct rip_route_mngr	*route_mngr;
+	struct rip_ipc		*ipc_mngr;
+	struct rip_db		*rip_db;
+	struct event_dispatcher *event_dispatcher;
 };
 
-int rip_begin(struct rip_context *rip_ctx);
-void rip_cleanup(struct rip_context * rip_ctx);
+int  rip_begin(struct rip_context *rip_ctx);
+void rip_cleanup(struct rip_context *rip_ctx);
 
 #endif

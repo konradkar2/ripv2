@@ -8,7 +8,7 @@
 
 struct rip_route_mngr;
 
-struct rip_route_mngr *rip_route_alloc_init(void);
+struct rip_route_mngr *rip_route_init(void);
 void rip_route_free(struct rip_route_mngr *);
 
 // kernel communication

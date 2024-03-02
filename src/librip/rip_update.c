@@ -62,7 +62,7 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 			      size_t *n_entries, const struct rip_advertising_policy policy)
 {
 	size_t				    buffer_entry_cnt = 0;
-	size_t				    db_iter	     = 0;
+	struct rip_db_iter		    db_iter	     = {0};
 	const struct rip_route_description *route;
 	while (rip_db_iter(db, &db_iter, &route)) {
 
@@ -99,7 +99,8 @@ int rip_send_response(struct msg_buffer *buffer, const struct rip_socket *socket
 	return rip_send(socket->fd, destination, buffer, n_entries);
 }
 
-int rip_send_advertisement_multicast(struct rip_context *ctx, bool advertise_only_changed)
+int rip_send_advertisement_multicast(struct rip_db *db, struct rip_ifc_vec *ifcs,
+				     bool advertise_only_changed)
 {
 	int ret = 0;
 
@@ -115,16 +116,16 @@ int rip_send_advertisement_multicast(struct rip_context *ctx, bool advertise_onl
 	struct rip_advertising_policy policy = {.neigbour_policy = rip_neighbour_split_horizon,
 						.advertise_only_changed = advertise_only_changed};
 
-	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
-		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_tx;
-		ret |= rip_send_response(&buffer, socket, rip_address_n, &ctx->rip_db, policy);
+	for (size_t i = 0; i < ifcs->count; ++i) {
+		const struct rip_socket *socket = &ifcs->items[i].socket_tx;
+		ret |= rip_send_response(&buffer, socket, rip_address_n, db, policy);
 	}
 
-	rip_db_mark_all_routes_as_unchanged(&ctx->rip_db);
+	rip_db_mark_all_routes_as_unchanged(db);
 	return ret;
 }
 
-int rip_send_request_multicast(struct rip_context *ctx)
+int rip_send_request_multicast(struct rip_ifc_vec *ifcs)
 {
 	int ret = 0;
 
@@ -140,8 +141,8 @@ int rip_send_request_multicast(struct rip_context *ctx)
 	inet_aton(RIP_MULTICAST_ADDR, &rip_address_n);
 
 	LOG_INFO("Sending request command");
-	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
-		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_tx;
+	for (size_t i = 0; i < ifcs->count; ++i) {
+		const struct rip_socket *socket = &ifcs->items[i].socket_tx;
 		ret |= rip_send(socket->fd, rip_address_n, &buffer, n_entries);
 	}
 
@@ -196,15 +197,15 @@ cleanup:
 	return ret;
 }
 
-void rip_send_advertisement_shutdown(struct rip_context *ctx)
+void rip_send_advertisement_shutdown(struct rip_db *db, struct rip_ifc_vec *ifcs)
 {
-	size_t			      db_iter = 0;
+	struct rip_db_iter	      db_iter = {0};
 	struct rip_route_description *route;
 
 	// ugly cast but this is shutdown, so who cares
-	while (rip_db_iter(&ctx->rip_db, &db_iter, (const struct rip_route_description **)&route)) {
+	while (rip_db_iter(db, &db_iter, (const struct rip_route_description **)&route)) {
 		route->entry.metric = htonl(16);
 	}
 
-	rip_send_advertisement_multicast(ctx, false);
+	rip_send_advertisement_multicast(db, ifcs, false);
 }

@@ -1,4 +1,5 @@
 #include "rip_socket.h"
+#include "utils/da_array.h"
 #include "utils/logging.h"
 #include "utils/network/socket.h"
 #include "utils/utils.h"
@@ -76,12 +77,12 @@ int rip_setup_tx_socket(struct rip_socket *sock)
 	return 0;
 }
 
-int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
+int rip_setup_sockets(struct rip_ifc_vec *ifcs)
 {
 	LOG_INFO("%s", __func__);
 
-	for (size_t i = 0; i < ifcs_n; ++i) {
-		struct rip_ifc *ifc = &ifcs[i];
+	for (size_t i = 0; i < ifcs->count; ++i) {
+		struct rip_ifc *ifc = &ifcs->items[i];
 
 		{
 			struct rip_socket *socket_rx = &ifc->socket_rx;
@@ -104,11 +105,11 @@ int rip_setup_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
 	return 0;
 }
 
-void rip_print_sockets(struct rip_ifc *ifcs, size_t ifcs_n)
+void rip_print_sockets(struct rip_ifc_vec *ifcs)
 {
 	LOG_INFO("%s", __func__);
-	for (size_t i = 0; i < ifcs_n; ++i) {
-		struct rip_ifc *ifc = &ifcs[i];
+	for (size_t i = 0; i < ifcs->count; ++i) {
+		struct rip_ifc *ifc = &ifcs->items[i];
 		printf("rx: ");
 		rip_socket_print(&ifc->socket_rx);
 		printf("\n");
@@ -140,23 +141,20 @@ int rip_create_socket_ifname(struct rip_socket *socket, const char *ifname)
 	return 0;
 }
 
-int rip_create_sockets(struct rip_configuration *cfg, struct rip_ifc **rip_ifcs,
-				size_t *rip_ifcs_n)
+int rip_create_sockets(struct rip_configuration *cfg, struct rip_ifc_vec *rip_ifcs)
 {
-	*rip_ifcs = CALLOC(sizeof(struct rip_ifc) * cfg->rip_interfaces_n);
-	if (!(*rip_ifcs)) {
-		return 1;
-	}
-	*rip_ifcs_n = cfg->rip_interfaces_n;
-
 	for (size_t i = 0; i < cfg->rip_interfaces_n; ++i) {
 		struct rip_interface *interface_cfg = &cfg->rip_interfaces[i];
-		struct rip_ifc	     *ifc	    = &(*rip_ifcs)[i];
 
-		if (rip_create_socket_ifname(&ifc->socket_rx, interface_cfg->dev))
+		struct rip_ifc ifc = {0};
+		if (rip_create_socket_ifname(&ifc.socket_rx, interface_cfg->dev))
 			return 1;
-		if (rip_create_socket_ifname(&ifc->socket_tx, interface_cfg->dev))
+		if (rip_create_socket_ifname(&ifc.socket_tx, interface_cfg->dev))
 			return 1;
+		da_append(rip_ifcs, ifc);
+		if(!rip_ifcs->items) {
+			LOG_ERR("da_append");
+		}
 	}
 
 	return 0;

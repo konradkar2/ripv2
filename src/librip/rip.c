@@ -35,17 +35,17 @@ static int rip_t_update_expired(const struct event *event)
 {
 	struct rip_context *ctx = event->arg;
 	if (timer_clear(&ctx->timers.t_update)) {
-		PANIC(1);
+		PANIC();
 	}
 
-	if (rip_send_advertisement_multicast(ctx, false)) {
+	if (rip_send_advertisement_multicast(ctx->rip_db, &ctx->rip_ifcs, false)) {
 		LOG_ERR("rip_send_advertisement_multicast");
 		return 1;
 	}
 
 	if (timer_start_oneshot(&ctx->timers.t_update, create_t_update_time())) {
 		LOG_ERR("timer_start_oneshot");
-		PANIC(1);
+		PANIC();
 	}
 
 	return 0;
@@ -55,10 +55,10 @@ static int rip_t_request_warmup_expired(const struct event *event)
 {
 	struct rip_context *ctx = event->arg;
 	if (timer_clear(&ctx->timers.t_request_warmup)) {
-		PANIC(1);
+		PANIC();
 	}
 
-	rip_send_request_multicast(ctx);
+	rip_send_request_multicast(&ctx->rip_ifcs);
 	return 0;
 }
 
@@ -68,10 +68,20 @@ static int rip_t_triggered_lock_expired(const struct event *event)
 
 	struct timer *t_triggered_lock = event->arg;
 	if (timer_clear(t_triggered_lock)) {
-		PANIC(1);
+		PANIC();
 	}
 	return 0;
 }
+
+// static int rip_t_timeout_expired(const struct event *event)
+// {
+// 	struct rip_context *ctx = event->arg;
+// 	if (timer_clear(&ctx->timers.t_timeout)) {
+// 		PANIC();
+// 	}
+
+// 	return 0;
+// }
 
 int check_route_changed(struct rip_context *ctx)
 {
@@ -79,10 +89,11 @@ int check_route_changed(struct rip_context *ctx)
 		return 0;
 	}
 
-	if (rip_db_any_route_changed(&ctx->rip_db)) {
+	if (rip_db_any_route_changed(ctx->rip_db)) {
 
 		bool advertise_only_changed = true;
-		if (rip_send_advertisement_multicast(ctx, advertise_only_changed)) {
+		if (rip_send_advertisement_multicast(ctx->rip_db, &ctx->rip_ifcs,
+						     advertise_only_changed)) {
 			LOG_ERR("rip_send_advertisement_multicast");
 			return 1;
 		}
@@ -99,13 +110,14 @@ int check_route_changed(struct rip_context *ctx)
 
 static int init_event_dispatcher(struct rip_context *ctx)
 {
-	struct event_dispatcher *ed = &ctx->event_dispatcher;
-	if (event_dispatcher_init(ed)) {
+	struct event_dispatcher *ed = event_dispatcher_init();
+	if (!ed) {
 		return 1;
 	}
+	ctx->event_dispatcher = ed;
 
-	for (size_t i = 0; i < ctx->rip_ifcs_n; ++i) {
-		const struct rip_socket *socket = &ctx->rip_ifcs[i].socket_rx;
+	for (size_t i = 0; i < ctx->rip_ifcs.count; ++i) {
+		const struct rip_socket *socket = &ctx->rip_ifcs.items[i].socket_rx;
 		if (event_dispatcher_register(ed, &(struct event){.fd = socket->fd,
 								  .cb = rip_handle_message_event,
 								  ctx,
@@ -136,7 +148,7 @@ static int rip_handle_events(struct rip_context *rip_ctx)
 	LOG_INFO("Waiting for events...");
 
 	while (1) {
-		if (event_dispatcher_poll_and_dispatch(&rip_ctx->event_dispatcher)) {
+		if (event_dispatcher_poll_and_dispatch(rip_ctx->event_dispatcher)) {
 			return 1;
 		}
 
@@ -230,31 +242,33 @@ int rip_begin(struct rip_context *ctx)
 	}
 	rip_configuration_print(&ctx->config);
 
-	if (rip_create_sockets(&ctx->config, &ctx->rip_ifcs, &ctx->rip_ifcs_n)) {
+	if (rip_create_sockets(&ctx->config, &ctx->rip_ifcs)) {
 		return 1;
 	}
 
-	if (rip_setup_sockets(ctx->rip_ifcs, ctx->rip_ifcs_n)) {
+	if (rip_setup_sockets(&ctx->rip_ifcs)) {
 		LOG_ERR("failed to setup_resources");
 		return 1;
 	}
-	rip_print_sockets(ctx->rip_ifcs, ctx->rip_ifcs_n);
+	rip_print_sockets(&ctx->rip_ifcs);
 
-	ctx->route_mngr = rip_route_alloc_init();
+	ctx->route_mngr = rip_route_init();
 	if (!ctx->route_mngr) {
 		return 1;
 	}
 
-	if (rip_db_init(&ctx->rip_db)) {
+	ctx->rip_db = rip_db_init();
+	if (!ctx->rip_db) {
 		return 1;
 	}
-	if (add_advertised_networks_to_db(&ctx->rip_db, &ctx->config)) {
+
+	if (add_advertised_networks_to_db(ctx->rip_db, &ctx->config)) {
 		return 1;
 	}
 
 	struct r_ipc_cmd_handler handlers[] = {
 	    {.cmd = dump_libnl_route_table, .data = ctx->route_mngr, .cb = rip_route_sprintf_table},
-	    {.cmd = dump_rip_routes, .data = &ctx->rip_db, .cb = rip_db_dump}};
+	    {.cmd = dump_rip_routes, .data = ctx->rip_db, .cb = rip_db_dump}};
 
 	ctx->ipc_mngr = rip_ipc_alloc_init(handlers, ARRAY_LEN(handlers));
 	if (!ctx->ipc_mngr) {
@@ -271,19 +285,19 @@ int rip_begin(struct rip_context *ctx)
 	return rip_handle_events(ctx);
 }
 
-static void rip_clear_routing_table(struct rip_context *rip_ctx)
+static void rip_clear_routing_table(struct rip_db *db, struct rip_route_mngr *route_mngr)
 {
 	LOG_INFO("%s", __func__);
 
-	size_t				    db_iter = 0;
+	struct rip_db_iter		    db_iter = {0};
 	const struct rip_route_description *route;
-	while (rip_db_iter(&rip_ctx->rip_db, &db_iter, &route)) {
+	while (rip_db_iter(db, &db_iter, &route)) {
 		// skip local addresses
 		if (route->entry.next_hop.s_addr == 0) {
 			continue;
 		}
 
-		if (rip_route_delete_route(rip_ctx->route_mngr, route)) {
+		if (rip_route_delete_route(route_mngr, route)) {
 			LOG_ERR("failed to delete route");
 			rip_route_description_print(route, stdout);
 		}
@@ -294,6 +308,6 @@ void rip_cleanup(struct rip_context *ctx)
 {
 	LOG_INFO("%s", __func__);
 
-	rip_send_advertisement_shutdown(ctx);
-	rip_clear_routing_table(ctx);
+	rip_send_advertisement_shutdown(ctx->rip_db, &ctx->rip_ifcs);
+	rip_clear_routing_table(ctx->rip_db, ctx->route_mngr);
 }
