@@ -11,7 +11,6 @@ add_library(librip
         utils/config/parse_rip_config.c
         utils/network/socket.c
         utils/hashmap.c
-        utils/vector.c
         utils/timer.c
         utils/event_dispatcher.c
         utils/utils.c

@@ -3,10 +3,10 @@
 #include "utils/hashmap.h"
 #include "utils/logging.h"
 #include "utils/utils.h"
-#include "utils/vector.h"
 #include <errno.h>
 #include <poll.h>
 #include <sys/poll.h>
+#include "utils/da_array.h"
 
 static int event_cmp(const void *el_a, const void *el_b, void *udata)
 {
@@ -25,14 +25,12 @@ static uint64_t event_hash(const void *item, uint64_t seed0, uint64_t seed1)
 
 int event_dispatcher_init(struct event_dispatcher *ed)
 {
-	struct hashmap **events_map  = &ed->events;
-	struct vector  **pollfds_vec = &ed->pollfds;
+	MEMSET_ZERO(ed);
+	struct hashmap **events_map = &ed->events;
 
 	*events_map = hashmap_new(sizeof(struct event), 0, 0, 0, event_hash, event_cmp, NULL, NULL);
-	*pollfds_vec = vector_create(10, sizeof(struct pollfd));
-
-	if (!*events_map || !*pollfds_vec) {
-		LOG_ERR("alloc");
+	if (!*events_map) {
+		LOG_ERR("hashmap_new");
 		return 1;
 	}
 
@@ -42,8 +40,7 @@ int event_dispatcher_init(struct event_dispatcher *ed)
 int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 {
 	struct hashmap *events_map  = ed->events;
-	struct vector  *pollfds_vec = ed->pollfds;
-
+	
 	if (hashmap_get(events_map, e) != NULL) {
 		LOG_ERR("event already registered, fd: %d", e->fd);
 		return 1;
@@ -57,9 +54,13 @@ int event_dispatcher_register(struct event_dispatcher *ed, struct event *e)
 		LOG_ERR("hashmap_oom");
 		return 1;
 	}
-	if (vector_add(pollfds_vec, &(struct pollfd){.fd = e->fd, .events = POLLIN})) {
-		LOG_ERR("vector_add, fd: %d", e->fd);
-		return 1;
+
+	struct pollfd pollfd = {.fd = e->fd, .events = POLLIN};
+	da_append(&ed->pollfds, pollfd);
+	if(!ed->pollfds.items)
+	{
+	 	LOG_ERR("vector_add, fd: %d", e->fd);
+	 	return 1;
 	}
 
 	return 0;
@@ -90,16 +91,15 @@ void event_dispatcher_destroy(struct event_dispatcher *ed)
 int event_dispatcher_poll_and_dispatch(struct event_dispatcher *ed)
 {
 	struct hashmap *events_map  = ed->events;
-	struct vector  *pollfds_vec = ed->pollfds;
+	struct pollfds_vec  *pollfds = &ed->pollfds;
 
-	if (-1 == poll(vector_get(pollfds_vec, 0), vector_get_len(pollfds_vec), -1)) {
+	if (-1 == poll(pollfds->items, pollfds->count, -1)) {
 		LOG_ERR("poll failed: %s", strerror(errno));
 		return 1;
 	}
 
-	for (size_t i = 0; i < vector_get_len(pollfds_vec); ++i) {
-		struct pollfd *pollfd = vector_get(pollfds_vec, i);
-		RIP_ASSERT(pollfd != NULL);
+	for (size_t i = 0; i < pollfds->count; ++i) {
+		struct pollfd *pollfd = &pollfds->items[i];
 
 		int revents = pollfd->revents;
 		int fd	    = pollfd->fd;

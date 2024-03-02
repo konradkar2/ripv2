@@ -12,7 +12,6 @@ enable_testing()
 add_executable(tests
     test.c
     main.c
-    vector_test.c
     hashmap_test.c
     rip_handle_resp_test.c
     rip_db_test.c
