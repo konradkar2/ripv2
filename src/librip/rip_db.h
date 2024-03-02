@@ -26,7 +26,8 @@ int rip_db_remove(struct rip_db *, struct rip_route_description *entry);
 
 // returns true if item was retrieved
 // wrapper for hashmap iter
-bool rip_db_iter(struct rip_db *, struct rip_db_iter *iter, const struct rip_route_description **desc);
+bool rip_db_iter(struct rip_db *, struct rip_db_iter *iter, struct rip_route_description **desc);
+bool rip_db_iter_const(struct rip_db *, struct rip_db_iter *iter, const struct rip_route_description **desc);
 
 bool rip_db_any_route_changed(struct rip_db *);
 void rip_db_mark_all_routes_as_unchanged(struct rip_db *db);

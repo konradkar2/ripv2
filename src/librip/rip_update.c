@@ -64,7 +64,7 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 	size_t				    buffer_entry_cnt = 0;
 	struct rip_db_iter		    db_iter	     = {0};
 	const struct rip_route_description *route;
-	while (rip_db_iter(db, &db_iter, &route)) {
+	while (rip_db_iter_const(db, &db_iter, &route)) {
 
 		if (policy.advertise_only_changed == true) {
 			if (route->changed == false) {
@@ -156,13 +156,13 @@ static bool is_initial_request(struct rip2_entry entries[], size_t n_entry)
 }
 
 int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
-				   struct in_addr sender_addr, int ifindex)
+				   struct in_addr target, int ifindex)
 {
-	LOG_INFO("%s to %s", __func__, inet_ntoa(sender_addr));
+	LOG_INFO("%s to %s", __func__, inet_ntoa(target));
 	int ret = 0;
 
 	if (n_entry == 0) {
-		LOG_ERR("Invalid request from %s", inet_ntoa(sender_addr));
+		LOG_ERR("Invalid request from %s", inet_ntoa(target));
 		return 1;
 	}
 
@@ -190,7 +190,7 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 	struct rip_advertising_policy policy = {.neigbour_policy = rip_neighbour_split_horizon,
 						.advertise_only_changed = false};
 
-	ret = rip_send_response(&buffer, &socket, sender_addr, db, policy);
+	ret = rip_send_response(&buffer, &socket, target, db, policy);
 
 cleanup:
 	close(socket.fd);
@@ -202,10 +202,10 @@ void rip_send_advertisement_shutdown(struct rip_db *db, struct rip_ifc_vec *ifcs
 	struct rip_db_iter	      db_iter = {0};
 	struct rip_route_description *route;
 
-	// ugly cast but this is shutdown, so who cares
-	while (rip_db_iter(db, &db_iter, (const struct rip_route_description **)&route)) {
+	while (rip_db_iter(db, &db_iter, &route)) {
 		route->entry.metric = htonl(16);
 	}
 
-	rip_send_advertisement_multicast(db, ifcs, false);
+	bool advertise_only_changed = false;
+	rip_send_advertisement_multicast(db, ifcs, advertise_only_changed);
 }

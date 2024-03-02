@@ -9,7 +9,7 @@ REGISTER_TEST(rip_db_add_test)
 {
 	struct rip_db *db = rip_db_init();
 	ASSERT(db);
-	
+
 	struct rip_route_description el = {.if_index = 5,
 					   .entry    = {
 						  .ip_address.s_addr  = 1234,
@@ -75,7 +75,7 @@ REGISTER_TEST(rip_db_iter_test)
 {
 	struct rip_db *db = rip_db_init();
 	ASSERT(db);
-	
+
 	struct rip_route_description el = {.if_index = 5,
 					   .entry    = {
 						  .ip_address.s_addr  = 1234,
@@ -93,7 +93,7 @@ REGISTER_TEST(rip_db_iter_test)
 	struct rip_db_iter		    iter	    = {0};
 	const struct rip_route_description *current_element = NULL;
 	int				    count	    = 0;
-	while (rip_db_iter(db, &iter, &current_element)) {
+	while (rip_db_iter_const(db, &iter, &current_element)) {
 		ASSERT(current_element != NULL);
 		count++;
 	}

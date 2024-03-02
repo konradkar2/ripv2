@@ -24,6 +24,7 @@
 #include <time.h>
 
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
+#define T_TIMEOUT_PERIOD_S 15
 
 static float create_t_update_time(void)
 {
@@ -78,6 +79,13 @@ static int rip_t_triggered_lock_expired(const struct event *event)
 // 	struct rip_context *ctx = event->arg;
 // 	if (timer_clear(&ctx->timers.t_timeout)) {
 // 		PANIC();
+// 	}
+
+// 	struct rip_db_iter iter = {0};
+// 	const struct rip_route_description * route = NULL;
+// 	while(rip_db_iter(ctx->rip_db, &iter, &route))
+// 	{
+// 		route->timeout_cnt += T_TIMEOUT_PERIOD_S;
 // 	}
 
 // 	return 0;
@@ -166,7 +174,6 @@ static int add_advertised_network_to_db(struct rip_db			*db,
 	struct rip_route_description desc;
 	MEMSET_ZERO(&desc);
 
-	desc.learned_via = rip_route_learned_via_conf,
 	desc.if_index	 = if_nametoindex(adv_network->dev);
 	if (desc.if_index == 0) {
 		LOG_ERR("if_nametoindex failed, dev: %s, errno %s", adv_network->dev,
@@ -291,7 +298,7 @@ static void rip_clear_routing_table(struct rip_db *db, struct rip_route_mngr *ro
 
 	struct rip_db_iter		    db_iter = {0};
 	const struct rip_route_description *route;
-	while (rip_db_iter(db, &db_iter, &route)) {
+	while (rip_db_iter_const(db, &db_iter, &route)) {
 		// skip local addresses
 		if (route->entry.next_hop.s_addr == 0) {
 			continue;

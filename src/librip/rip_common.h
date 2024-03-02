@@ -44,21 +44,14 @@ void rip2_entry_print(struct rip2_entry, FILE *file);
 static_assert(sizeof(struct rip_header) == 4, "");
 static_assert(sizeof(struct rip2_entry) == 20, "");
 
-enum rip_route_learned_via {
-	rip_route_learned_via_conf,
-	rip_route_learned_via_rip,
-};
-
 // Aggregate type for lookup
 // Check rip_db.c for which field is used for lookup and cannot be modified
 struct rip_route_description {
-	struct rip2_entry	   entry;
-	uint32_t		   if_index;
-	enum rip_route_learned_via learned_via;
+	struct rip2_entry entry;
+	uint32_t	  if_index;
 
 	/* fields not used for hashmap comparison */
-
-	// tracking for changed routes advertisement
+	// changed, but not yet advertised
 	bool changed;
 	// when reaches 180, begin deletion process
 	int timeout_cnt;

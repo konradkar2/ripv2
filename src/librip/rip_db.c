@@ -133,15 +133,14 @@ enum r_cmd_status rip_db_dump(FILE *file, void *data)
 
 	struct rip_db_iter		    iter  = {0};
 	const struct rip_route_description *descr = NULL;
-	while (rip_db_iter(db, &iter, &descr)) {
+	while (rip_db_iter_const(db, &iter, &descr)) {
 		rip_route_description_print(descr, file);
 	}
 
 	return r_cmd_status_success;
 }
 
-bool rip_db_iter(struct rip_db *db, struct rip_db_iter *iter,
-		 const struct rip_route_description **desc)
+bool rip_db_iter(struct rip_db *db, struct rip_db_iter *iter, struct rip_route_description **desc)
 {
 	void *el;
 	bool  ret = hashmap_iter(db->added_routes, &iter->hashmap_iter, &el);
@@ -151,6 +150,12 @@ bool rip_db_iter(struct rip_db *db, struct rip_db_iter *iter,
 	}
 
 	return false;
+}
+
+bool rip_db_iter_const(struct rip_db *db, struct rip_db_iter *iter,
+		       const struct rip_route_description **desc)
+{
+	return rip_db_iter(db, iter, (struct rip_route_description **)desc);
 }
 
 bool rip_db_any_route_changed(struct rip_db *db) { return db->any_route_changed; }
@@ -163,7 +168,7 @@ void rip_db_mark_all_routes_as_unchanged(struct rip_db *db)
 		struct rip_db_iter	      iter  = {0};
 		struct rip_route_description *entry = NULL;
 
-		while (rip_db_iter(db, &iter, (const struct rip_route_description **)&entry)) {
+		while (rip_db_iter(db, &iter, &entry)) {
 			entry->changed = false;
 		}
 		db->any_route_changed = false;

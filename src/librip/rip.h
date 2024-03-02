@@ -24,7 +24,7 @@ struct rip_context {
 		struct timer t_request_warmup;
 
 		// global timer instead of unique one per route
-		//  triggered every 30seconds
+		// triggered every 15seconds
 		struct timer t_timeout;
 	} timers;
 
