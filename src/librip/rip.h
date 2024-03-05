@@ -26,6 +26,9 @@ struct rip_context {
 		// global timer instead of unique one per route
 		// triggered every 15seconds
 		struct timer t_timeout;
+
+		// global garbage collection timer instead of unique one per route
+		struct timer t_gc;
 	} timers;
 
 	struct rip_route_mngr	*route_mngr;

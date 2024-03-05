@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 #define RIP_CMD_REQUEST 1
 #define RIP_CMD_RESPONSE 2
@@ -51,10 +52,18 @@ struct rip_route_description {
 	uint32_t	  if_index;
 
 	/* fields not used for hashmap comparison */
+
 	// changed, but not yet advertised
 	bool changed;
+	/* local route, not learned by RIP*/
+	bool is_local;
+	/* true if added to OS routing table */
+	bool in_routing_table;
 	// when reaches 180, begin deletion process
 	int timeout_cnt;
+
+	// timespamp to remove it on GC timer expiry
+	struct timespec gc_started_at;
 };
 
 struct rip_socket {

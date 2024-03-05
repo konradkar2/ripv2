@@ -18,7 +18,7 @@ REGISTER_TEST(rip_db_add_test)
 					      }};
 
 	ASSERT(rip_db_add(db, &el) == 0);
-	ASSERT(rip_db_get(db, &el) != NULL);
+	ASSERT(rip_db_get(db, rip_db_ok, &el) != NULL);
 	ASSERT(rip_db_add(db, &el) == 1);
 
 	{
@@ -93,7 +93,7 @@ REGISTER_TEST(rip_db_iter_test)
 	struct rip_db_iter		    iter	    = {0};
 	const struct rip_route_description *current_element = NULL;
 	int				    count	    = 0;
-	while (rip_db_iter_const(db, &iter, &current_element)) {
+	while (rip_db_iter_const(db, rip_db_ok, &iter, &current_element)) {
 		ASSERT(current_element != NULL);
 		count++;
 	}

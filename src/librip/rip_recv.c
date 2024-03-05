@@ -49,18 +49,16 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 	return 0;
 }
 
-int handle_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
-			struct rip_route_description *old_route,
-			struct rip_route_description *new_route)
+int handle_ok_route_update(struct rip_route_description *old_route,
+			   struct rip_route_description *new_route)
 {
-	(void)route_mngr;
-	(void)db;
+
 	struct rip2_entry *old_entry = &old_route->entry;
 	struct rip2_entry *new_entry = &new_route->entry;
 
-	if (old_entry->metric != new_entry->metric) {
-		old_entry->metric = new_entry->metric;
-	}
+	old_entry->metric      = new_entry->metric;
+	old_route->timeout_cnt = 0;
+
 	return 0;
 }
 
@@ -68,14 +66,17 @@ void build_route_description(struct rip2_entry *entry, struct in_addr sender_add
 			     struct rip_route_description *out)
 {
 	memcpy(&out->entry, entry, sizeof(*entry));
-	out->if_index	    = if_index;
-	out->entry.next_hop = sender_addr;
+	out->if_index	      = if_index;
+	out->entry.next_hop   = sender_addr;
+	out->is_local	      = false;
+	out->in_routing_table = true;
 }
 
 int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 		       struct rip2_entry *entry, struct in_addr sender_addr, int if_index)
 {
-	struct rip_route_description *old_route = NULL;
+	struct rip_route_description *ok_route	    = NULL;
+	struct rip_route_description *garbage_route = NULL;
 	struct rip_route_description  incoming_route;
 	MEMSET_ZERO(&incoming_route);
 
@@ -87,11 +88,15 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	rip2_entry_hton(entry);
 
 	build_route_description(entry, sender_addr, if_index, &incoming_route);
-	old_route = (struct rip_route_description *)rip_db_get(db, &incoming_route);
+	ok_route = rip_db_get(db, rip_db_ok, &incoming_route);
 
-	if (old_route) {
-		return handle_route_update(route_mngr, db, old_route, &incoming_route);
+	if (ok_route) {
+		return handle_ok_route_update(ok_route, &incoming_route);
 	} else {
+		garbage_route = rip_db_get(db, rip_db_garbage, &incoming_route);
+		if (garbage_route) {
+			rip_db_remove(db, garbage_route);
+		}
 		return handle_non_existing_route(route_mngr, db, &incoming_route);
 	}
 }

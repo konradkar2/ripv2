@@ -64,7 +64,7 @@ void fill_buffer_with_entries(uint32_t if_index_dest, struct rip_db *db, struct 
 	size_t				    buffer_entry_cnt = 0;
 	struct rip_db_iter		    db_iter	     = {0};
 	const struct rip_route_description *route;
-	while (rip_db_iter_const(db, &db_iter, &route)) {
+	while (rip_db_iter_const(db, rip_db_all, &db_iter, &route)) {
 
 		if (policy.advertise_only_changed == true) {
 			if (route->changed == false) {
@@ -202,7 +202,7 @@ void rip_send_advertisement_shutdown(struct rip_db *db, struct rip_ifc_vec *ifcs
 	struct rip_db_iter	      db_iter = {0};
 	struct rip_route_description *route;
 
-	while (rip_db_iter(db, &db_iter, &route)) {
+	while (rip_db_iter(db, rip_db_all, &db_iter, &route)) {
 		route->entry.metric = htonl(16);
 	}
 

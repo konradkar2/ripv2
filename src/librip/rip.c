@@ -14,6 +14,7 @@
 #include "utils/utils.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
+#include <bits/time.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -24,7 +25,10 @@
 #include <time.h>
 
 #define RIP_CONFIG_FILENAME "/etc/rip/config.yaml"
-#define T_TIMEOUT_PERIOD_S 15
+#define TIMEOUT_PERIOD_TIMER 15
+#define TIMEOUT_PERIOD_RFC 180
+#define GC_PERIOD_TIMER 5
+#define GC_PERIOD_RFC 120
 
 static float create_t_update_time(void)
 {
@@ -74,22 +78,121 @@ static int rip_t_triggered_lock_expired(const struct event *event)
 	return 0;
 }
 
-// static int rip_t_timeout_expired(const struct event *event)
-// {
-// 	struct rip_context *ctx = event->arg;
-// 	if (timer_clear(&ctx->timers.t_timeout)) {
-// 		PANIC();
-// 	}
+static int rip_route_timeout_expired(struct rip_route_mngr *route_mngr, struct rip_db *db,
+				     struct rip_route_description *route,
+				     const struct timespec	   expired_at)
+{
+	LOG_INFO("route timeout expired: ");
+	rip_route_description_print(route, stdout);
 
-// 	struct rip_db_iter iter = {0};
-// 	const struct rip_route_description * route = NULL;
-// 	while(rip_db_iter(ctx->rip_db, &iter, &route))
-// 	{
-// 		route->timeout_cnt += T_TIMEOUT_PERIOD_S;
-// 	}
+	if (rip_route_delete_route(route_mngr, route)) {
+		LOG_ERR("failed to remove route from routing table, removing it "
+			"from database");
+		if (rip_db_remove(db, route)) {
+			PANIC();
+		}
+		return 1;
+	}
 
-// 	return 0;
-// }
+	route->changed		= true;
+	route->entry.metric	= htonl(16);
+	route->in_routing_table = false;
+	route->gc_started_at	= expired_at;
+
+	if (rip_db_move_to_garbage(db, route)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static int rip_t_timeout_expired(const struct event *event)
+{
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->timers.t_timeout)) {
+		PANIC();
+	}
+
+	struct rip_db_iter	      iter  = {0};
+	struct rip_route_description *route = NULL;
+
+	struct timespec now = {0};
+	if (clock_gettime(CLOCK_MONOTONIC, &now)) {
+		LOG_ERR("clock_gettime: %s", strerror(errno));
+		PANIC();
+	}
+
+	bool start_gc = false;
+	while (rip_db_iter(ctx->rip_db, rip_db_ok, &iter, &route)) {
+		if (route->is_local) {
+			continue;
+		}
+
+		route->timeout_cnt += TIMEOUT_PERIOD_TIMER;
+		if (route->timeout_cnt >= TIMEOUT_PERIOD_RFC) {
+
+			if (rip_route_timeout_expired(ctx->route_mngr, ctx->rip_db, route, now)) {
+				return 1;
+			}
+
+			start_gc = true;
+			iter	 = (struct rip_db_iter){0};
+		}
+	}
+
+	if (start_gc) {
+		if (!timer_is_ticking(&ctx->timers.t_gc)) {
+			LOG_DEBUG("starting garbage collection timer");
+			timer_start_oneshot(&ctx->timers.t_gc, GC_PERIOD_TIMER);
+		}
+	}
+
+	if (timer_start_oneshot(&ctx->timers.t_timeout, TIMEOUT_PERIOD_TIMER)) {
+		PANIC();
+	}
+
+	return 0;
+}
+
+static bool has_time_passed(const struct timespec *now, const struct timespec *then, int time)
+{
+	return (now->tv_sec - then->tv_sec) >= time;
+}
+
+static int rip_t_gc_expired(const struct event *event)
+{
+	struct rip_context *ctx = event->arg;
+	if (timer_clear(&ctx->timers.t_gc)) {
+		PANIC();
+	}
+
+	struct rip_route_description *route = NULL;
+
+	struct timespec now = {0};
+	if (clock_gettime(CLOCK_MONOTONIC, &now)) {
+		LOG_ERR("clock_gettime: %s", strerror(errno));
+		PANIC();
+	}
+
+	struct rip_db_iter iter = {0};
+	while (rip_db_iter(ctx->rip_db, rip_db_garbage, &iter, &route)) {
+		if (has_time_passed(&now, &route->gc_started_at, GC_PERIOD_RFC)) {
+			if (rip_db_remove(ctx->rip_db, route)) {
+				LOG_ERR("failed to remove route");
+				return 1;
+			}
+			iter = (struct rip_db_iter){0};
+		}
+	}
+
+	if (rip_db_count(ctx->rip_db, rip_db_garbage) > 0) {
+		if (timer_start_oneshot(&ctx->timers.t_gc, GC_PERIOD_TIMER)) {
+			PANIC();
+		}
+	}
+
+	return 0;
+}
 
 int check_route_changed(struct rip_context *ctx)
 {
@@ -141,6 +244,8 @@ static int init_event_dispatcher(struct rip_context *ctx)
 	    {timer_getfd(&ctx->timers.t_update), rip_t_update_expired, ctx, "t_update"},
 	    {timer_getfd(&ctx->timers.t_triggered_lock), rip_t_triggered_lock_expired,
 	     &ctx->timers.t_triggered_lock, "t_triggered_lock"},
+	    {timer_getfd(&ctx->timers.t_timeout), rip_t_timeout_expired, ctx, "t_timeout"},
+	    {timer_getfd(&ctx->timers.t_gc), rip_t_gc_expired, ctx, "t_gc"},
 	    {timer_getfd(&ctx->timers.t_request_warmup), rip_t_request_warmup_expired, ctx,
 	     "t_request_warmup"}};
 
@@ -174,12 +279,14 @@ static int add_advertised_network_to_db(struct rip_db			*db,
 	struct rip_route_description desc;
 	MEMSET_ZERO(&desc);
 
-	desc.if_index	 = if_nametoindex(adv_network->dev);
+	desc.if_index = if_nametoindex(adv_network->dev);
 	if (desc.if_index == 0) {
 		LOG_ERR("if_nametoindex failed, dev: %s, errno %s", adv_network->dev,
 			strerror(errno));
 		return 1;
 	}
+	desc.in_routing_table = false;
+	desc.is_local	      = true;
 
 	struct rip2_entry *entry = &desc.entry;
 	if (1 != inet_pton(AF_INET, adv_network->address, &entry->ip_address.s_addr)) {
@@ -231,6 +338,17 @@ static int rip_init_timers(struct rip_timers *timers)
 	if (timer_init(&timers->t_request_warmup) ||
 	    timer_start_oneshot(&timers->t_request_warmup, get_random_float(0.5, 1.0))) {
 		LOG_ERR("t_request_warmup");
+		return 1;
+	}
+
+	if (timer_init(&timers->t_timeout) ||
+	    timer_start_oneshot(&timers->t_timeout, TIMEOUT_PERIOD_TIMER)) {
+		LOG_ERR("t_timeout");
+		return 1;
+	}
+
+	if (timer_init(&timers->t_gc)) {
+		LOG_ERR("t_gc");
 		return 1;
 	}
 
@@ -298,9 +416,9 @@ static void rip_clear_routing_table(struct rip_db *db, struct rip_route_mngr *ro
 
 	struct rip_db_iter		    db_iter = {0};
 	const struct rip_route_description *route;
-	while (rip_db_iter_const(db, &db_iter, &route)) {
+	while (rip_db_iter_const(db, rip_db_ok, &db_iter, &route)) {
 		// skip local addresses
-		if (route->entry.next_hop.s_addr == 0) {
+		if (route->is_local) {
 			continue;
 		}
 
