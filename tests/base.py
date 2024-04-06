@@ -49,6 +49,7 @@ class Host:
 
 class munet_environment:
     def __init__(self, env_name: str, hostIdToIpAddress: Dict[str, str]):
+        self.env_name  = env_name;
         self.munet_ns_dir = "/tmp/ripv2_tests/{0}".format(env_name)
         system("rm -rf {0}".format(self.munet_ns_dir))
         self.munet_ifc = run_munet(self.munet_ns_dir)
@@ -89,13 +90,17 @@ class munet_environment:
         print(connectivity_status)               
         return ret
     
+    def get_log_filename(self, hostname):
+        return "{0}/{1}/var.log.rip/rip.log".format(self.munet_ns_dir, hostname)
+
     def show_logs(self, hostname: str):
-        filepath = "{0}/{1}/var.log.rip/rip.log".format(self.munet_ns_dir, hostname)
+        filepath = self.get_log_filename(hostname)
         with open(filepath) as f:
             print("")
             print(f.read())
+   
 
-    def __del__(self):
+    def teardown_munet(self):
         print("teardown, cleaning munet")
         self.munet_ifc.sendline("quit")
         time.sleep(2)

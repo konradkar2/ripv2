@@ -158,7 +158,7 @@ static bool is_initial_request(struct rip2_entry entries[], size_t n_entry)
 int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[], size_t n_entry,
 				   struct in_addr target, int ifindex)
 {
-	LOG_INFO("%s to %s", __func__, inet_ntoa(target));
+	LOG_DEBUG("to %s", inet_ntoa(target));
 	int ret = 0;
 
 	if (n_entry == 0) {

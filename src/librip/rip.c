@@ -36,6 +36,17 @@ static float create_t_update_time(void)
 	return 27.5 + get_random_float(2.5, 7.5);
 }
 
+static struct timespec get_monotonic_time(void)
+{
+	struct timespec ret;
+	if (clock_gettime(CLOCK_MONOTONIC, &ret)) {
+		LOG_ERR("clock_gettime: %s", strerror(errno));
+		PANIC();
+	}
+
+	return ret;
+}
+
 static int rip_t_update_expired(const struct event *event)
 {
 	struct rip_context *ctx = event->arg;
@@ -116,13 +127,8 @@ static int rip_t_timeout_expired(const struct event *event)
 	struct rip_db_iter	      iter  = {0};
 	struct rip_route_description *route = NULL;
 
-	struct timespec now = {0};
-	if (clock_gettime(CLOCK_MONOTONIC, &now)) {
-		LOG_ERR("clock_gettime: %s", strerror(errno));
-		PANIC();
-	}
-
-	bool start_gc = false;
+	struct timespec now	 = get_monotonic_time();
+	bool		start_gc = false;
 	while (rip_db_iter(ctx->rip_db, rip_db_ok, &iter, &route)) {
 		if (route->is_local) {
 			continue;
@@ -168,27 +174,17 @@ static int rip_t_gc_expired(const struct event *event)
 
 	struct rip_route_description *route = NULL;
 
-	struct timespec now = {0};
-	if (clock_gettime(CLOCK_MONOTONIC, &now)) {
-		LOG_ERR("clock_gettime: %s", strerror(errno));
-		PANIC();
-	}
-
+	struct timespec	   now	= get_monotonic_time();
 	struct rip_db_iter iter = {0};
 	while (rip_db_iter(ctx->rip_db, rip_db_garbage, &iter, &route)) {
 		if (has_time_passed(&now, &route->gc_started_at, GC_PERIOD_RFC)) {
-			if (rip_db_remove(ctx->rip_db, route)) {
-				LOG_ERR("failed to remove route");
-				return 1;
-			}
+			rip_db_remove(ctx->rip_db, route);
 			iter = (struct rip_db_iter){0};
 		}
 	}
 
 	if (rip_db_count(ctx->rip_db, rip_db_garbage) > 0) {
-		if (timer_start_oneshot(&ctx->timers.t_gc, GC_PERIOD_TIMER)) {
-			PANIC();
-		}
+		timer_start_oneshot(&ctx->timers.t_gc, GC_PERIOD_TIMER);
 	}
 
 	return 0;

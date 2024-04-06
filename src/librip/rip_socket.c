@@ -154,6 +154,7 @@ int rip_create_sockets(struct rip_configuration *cfg, struct rip_ifc_vec *rip_if
 		da_append(rip_ifcs, ifc);
 		if(!rip_ifcs->items) {
 			LOG_ERR("da_append");
+			return 1;
 		}
 	}
 

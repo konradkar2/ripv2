@@ -4,6 +4,7 @@ import pytest
 from retry import retry
 from base import Host, munet_environment
 import conftest
+import re
 
 
 class test_basic_environment(munet_environment):
@@ -21,13 +22,19 @@ class test_basic_environment(munet_environment):
        
         if not self.two_hosts_have_connectivity("r3", "r4"):
             raise Exception("r3 can't reach r4")
-        
-    def __del__(self):
-        self.show_logs("r3")
- 
+     
 @pytest.fixture(scope="module")
-def test_env(pytestconfig):
-    return test_basic_environment(pytestconfig.getoption("name"))
+def test_env(request):
+    env_name = request.config.getoption("name");
+    env = test_basic_environment(env_name)
+    
+    def show_logs_finalizer():
+        print("Finalizer")
+        env.show_logs("r3")
+        env.teardown_munet()
+    request.addfinalizer(show_logs_finalizer)
+
+    return env;
 
 def test_simple(test_env):
     assert 1 == 1
@@ -69,3 +76,20 @@ def test_connectivity(test_env):
 def test_remove_dead_routes(test_env):
     test_env.hosts["r6"].execute_shell("pkill frr")
 
+def test_no_errors(test_env):
+    hostnames = []
+    if(test_env.env_name == "self_test"):
+        hostnames = test_env.hosts.keys()
+    else:
+        hostnames = ["r3"]
+    
+    print("hostnames: {}".format(hostnames))
+    for hostname in hostnames:
+        filepath = test_env.get_log_filename(hostname)
+        with open(filepath) as f:
+                for line in f:
+                    match = re.search('error', line, re.IGNORECASE);
+                    if(match):
+                        print("error found: '{}' for hostname {}, showing logs...".format(line, hostname))
+                        test_env.show_logs(hostname)
+                        pytest.fail()
