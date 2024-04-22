@@ -49,15 +49,22 @@ int handle_non_existing_route(struct rip_route_mngr *route_mngr, struct rip_db *
 	return 0;
 }
 
-int handle_ok_route_update(struct rip_route_description *old_route,
+int handle_ok_route_update(struct rip_route_mngr *route_mngr, struct rip_db *db,
+			   struct rip_route_description *old_route,
 			   struct rip_route_description *new_route)
 {
 
 	struct rip2_entry *old_entry = &old_route->entry;
 	struct rip2_entry *new_entry = &new_route->entry;
 
-	old_entry->metric      = new_entry->metric;
-	old_route->timeout_cnt = 0;
+	if (old_entry->metric > new_entry->metric) {
+		LOG_DEBUG("found a better route");
+		if (rip_route_delete_route(route_mngr, old_route)) {
+			return 1;
+		}
+		rip_db_remove(db, old_route);
+		return handle_non_existing_route(route_mngr, db, new_route);
+	}
 
 	return 0;
 }
@@ -91,7 +98,7 @@ int handle_ripv2_entry(struct rip_route_mngr *route_mngr, struct rip_db *db,
 	ok_route = rip_db_get(db, rip_db_ok, &incoming_route);
 
 	if (ok_route) {
-		return handle_ok_route_update(ok_route, &incoming_route);
+		return handle_ok_route_update(route_mngr, db, ok_route, &incoming_route);
 	} else {
 		garbage_route = rip_db_get(db, rip_db_garbage, &incoming_route);
 		if (garbage_route) {
