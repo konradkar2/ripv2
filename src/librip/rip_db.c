@@ -123,7 +123,7 @@ int rip_db_add(struct rip_db *db, struct rip_route_description *entry)
 struct rip_route_description *rip_db_get(struct rip_db *db, enum rip_db_type type,
 					 struct rip_route_description *entry)
 {
-	return (void *)hashmap_get(db->ok_routes, entry);
+	//return (void *)hashmap_get(db->ok_routes, entry);
 
 	switch (type) {
 	case rip_db_ok:

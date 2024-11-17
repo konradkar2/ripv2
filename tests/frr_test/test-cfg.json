@@ -1,0 +1,37 @@
+{
+    "name" : "frr_test",
+    "hostIdToIpAddress": {
+        "r1": "10.0.1.1",
+        "r2": "10.0.2.2",
+        "r3": "10.0.3.3",
+        "r4": "10.0.3.4",
+        "r5": "10.0.5.5",
+        "r6": "10.0.5.6"
+    },
+    "steps": [
+        {
+            "name": "check ip route on R3",
+            "strategy": {
+                "host": "r3",
+                "actions": [
+                    {
+                        "type": "framework_cmd",
+                        "do": "expect_rip_cli_routing_len",
+                        "data": 6
+                    },
+                    {
+                        "type": "framework_cmd",
+                        "do": "expect_rip_cli_routing_contains",
+                        "data": [
+                            "ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.5.0/24, nh 10.0.3.4, metric 3",
+                            "ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.4.0/24, nh 10.0.3.4, metric 2",
+                            "ifi 2, dev eth0, rfamily_id 2, rtag 0, network 10.0.1.0/24, nh 10.0.2.2, metric 2",
+                            "ifi 2, dev eth0, rfamily_id 2, rtag 0, network 10.0.2.0/24, nh 0.0.0.0, metric 1",
+                            "ifi 3, dev eth1, rfamily_id 2, rtag 0, network 10.0.3.0/24, nh 0.0.0.0, metric 1"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

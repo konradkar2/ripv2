@@ -39,9 +39,9 @@ static int rip_send(int fd, struct in_addr destination, struct msg_buffer *buffe
 	socket_address.sin_port	  = htons(RIP_UDP_PORT);
 	socket_address.sin_addr	  = destination;
 
-	size_t	send_size  = sizeof(struct rip_header) + sizeof(struct rip2_entry) * n_entries;
-	ssize_t sent_bytes = sendto(fd, buffer, send_size, 0, (struct sockaddr *)&socket_address,
-				    sizeof(socket_address));
+	const size_t  send_size = sizeof(struct rip_header) + sizeof(struct rip2_entry) * n_entries;
+	const ssize_t sent_bytes = sendto(
+	    fd, buffer, send_size, 0, (struct sockaddr *)&socket_address, sizeof(socket_address));
 
 	if (sent_bytes == -1) {
 		LOG_ERR("sendto failed: %s", strerror(errno));
@@ -187,8 +187,10 @@ int rip_send_advertisement_unicast(struct rip_db *db, struct rip2_entry entries[
 		goto cleanup;
 	}
 
-	struct rip_advertising_policy policy = {.neigbour_policy = rip_neighbour_split_horizon,
-						.advertise_only_changed = false};
+	struct rip_advertising_policy policy = {
+	    .neigbour_policy	    = rip_neighbour_split_horizon,
+	    .advertise_only_changed = false,
+	};
 
 	ret = rip_send_response(&buffer, &socket, target, db, policy);
 
