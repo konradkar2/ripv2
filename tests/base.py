@@ -57,20 +57,16 @@ class Host:
         print("No connectivity between host {0} and {1}".format(self.to_string(), otherHost.to_string()))
         return False
 
-class munet_environment:
-    def __init__(self, env_name: str):
+class MunetEnvironment:
+    def __init__(self, env_name: str, hostIdToIpAddress):
+        print("Starting munet (env_name: {})".format(env_name))
         self.env_name  = env_name;
         self.munet_ns_dir = "/tmp/ripv2_tests/{0}".format(env_name)
         system("rm -rf {0}".format(self.munet_ns_dir))
         self.munet_ifc = run_munet(self.munet_ns_dir)
         self.hosts = {}
 
-        hostIdToIpAddress = {}
-        with open('test-cfg.json') as f:
-            d = json.load(f)
-            hostIdToIpAddress = d["hostIdToIpAddress"]
-        
-
+        assert(len(hostIdToIpAddress) > 0)        
         for hostId in hostIdToIpAddress:
             ip_address = hostIdToIpAddress[hostId]
             self.hosts[hostId] = Host(hostId, self.munet_ifc, ip_address)

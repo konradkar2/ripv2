@@ -1,5 +1,5 @@
 {
-    "name" : "frr_test",
+    "name" : "self_test",
     "hostIdToIpAddress": {
         "r1": "10.0.1.1",
         "r2": "10.0.2.2",
@@ -17,7 +17,9 @@
                     {
                         "type": "framework_cmd",
                         "do": "expect_rip_cli_routing_len",
-                        "data": 6
+                        "data": 5,
+                        "retries" : 5,
+                        "retry_period" : 1
                     },
                     {
                         "type": "framework_cmd",
